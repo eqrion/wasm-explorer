@@ -1,0 +1,34 @@
+
+body {
+  margin: 0;
+  padding: 0;
+}
+
+#container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+textarea {
+    border: none;
+    overflow: auto;
+    outline: none;
+
+    -webkit-box-shadow: none;
+    -moz-box-shadow: none;
+    box-shadow: none;
+
+    resize: none; /*remove the resize handle on the bottom right*/
+}
+
+#input {
+  font-size: 1.2rem;
+  font-family: monospace;
+  padding: 2rem;
+}
+
+#output {
+  font-size: 1.2rem;
+  font-family: sans-serif;
+  padding: 2rem;
+}
