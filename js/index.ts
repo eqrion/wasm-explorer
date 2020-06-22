@@ -2,44 +2,45 @@ import module from '../crate/Cargo.toml'
 
 const tabSpaces = 4;
 
-let {explore} = module;
+let {input_text} = module;
 
 console.log('loaded');
 
-let input = document.getElementById('input') as HTMLTextAreaElement;
-let output = document.getElementById('output');
+let text = document.getElementById('text') as HTMLTextAreaElement;
+let binary = document.getElementById('binary');
+let explain = document.getElementById('explain');
 
 function trigger() {
-  if (!input || !output) {
+  if (!text || !binary || !explain) {
     return;
   }
-  explore(input.value, output);
+  input_text(text.value, binary, explain);
 }
 
-input.addEventListener('keydown', (e) => {
+text.addEventListener('keydown', (e) => {
   let keyCode = e.keyCode || e.which;
 
   if (keyCode == 9) {
     e.preventDefault();
-    let start = input.selectionStart;
-    let end = input.selectionEnd;
-    let value = input.value;
+    let start = text.selectionStart;
+    let end = text.selectionEnd;
+    let value = text.value;
 
     let before = value.substring(0, start);
     let after = value.substring(end);
 
     if (e.getModifierState('Shift')) {
       if (before.endsWith(' '.repeat(tabSpaces))) {
-        input.value = before.substring(0, start - tabSpaces) + after;
-        input.selectionStart = input.selectionEnd = start - tabSpaces;
+        text.value = before.substring(0, start - tabSpaces) + after;
+        text.selectionStart = text.selectionEnd = start - tabSpaces;
       }
     } else {
-      input.value = before + ' '.repeat(tabSpaces) + after;
-      input.selectionStart = input.selectionEnd = start + tabSpaces;
+      text.value = before + ' '.repeat(tabSpaces) + after;
+      text.selectionStart = text.selectionEnd = start + tabSpaces;
     }
   }
 })
-input.addEventListener('input', trigger);
+text.addEventListener('input', trigger);
 
-input.value = '(module)'
+text.value = '(module)'
 trigger();

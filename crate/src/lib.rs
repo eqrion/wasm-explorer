@@ -31,30 +31,33 @@ cfg_if! {
 }
 
 #[wasm_bindgen]
-pub fn explore(text: &str, out: &Element) {
-  out.set_text_content(Some(&run(text)));
+pub fn input_text(text: &str, binary: &Element, explain: &Element) {
+    let (out_binary, out_explain) = run_input_text(text);
+    binary.set_text_content(Some(&out_binary));
+    explain.set_text_content(Some(&out_explain));
 }
 
-fn run(text: &str) -> String {
-  let bytes = match wat::parse_str(&text) {
-    Ok(binary) => binary,
-    Err(err) => {
-      return format!("{}", err);
-    },
-  };
+fn run_input_text(text: &str) -> (String, String) {
+    let bytes = match wat::parse_str(&text) {
+        Ok(binary) => binary,
+        Err(err) => {
+            return (String::new(), format!("{}", err));
+        },
+    };
 
-  let mut d = Dump::new(&bytes);
-  if let Err(err) = d.run() {
-    return format!("{}", err);
-  }
-  d.dst
+    let mut d = Dump::new(&bytes);
+    if let Err(err) = d.run() {
+        return (String::new(), format!("{}", err));
+    }
+    (d.binary, d.explain)
 }
 
 struct Dump<'a> {
     bytes: &'a [u8],
     cur: usize,
     state: String,
-    dst: String,
+    binary: String,
+    explain: String,
 }
 
 const NBYTES: usize = 4;
@@ -65,7 +68,8 @@ impl<'a> Dump<'a> {
             bytes,
             cur: 0,
             state: String::new(),
-            dst: String::new(),
+            binary: String::new(),
+            explain: String::new(),
         }
     }
 
@@ -208,11 +212,11 @@ impl<'a> Dump<'a> {
                                 me.print_ops(init_expr.get_operators_reader())?;
                             }
                         }
-                        write!(me.dst, "0x{:04x} |", me.cur)?;
+                        write!(me.binary, "0x{:04x} |", me.cur)?;
                         for _ in 0..NBYTES {
-                            write!(me.dst, "---")?;
+                            write!(me.binary, "---")?;
                         }
-                        write!(me.dst, "-| ... {} bytes of data\n", i.data.len())?;
+                        write!(me.binary, "-| ... {} bytes of data\n", i.data.len())?;
                         me.cur = end;
                         Ok(())
                     })?
@@ -221,7 +225,7 @@ impl<'a> Dump<'a> {
                 SectionCode::Code => {
                     self.print_iter(section.get_code_section_reader()?, |me, _end, i| {
                         write!(
-                            me.dst,
+                            me.binary,
                             "============== func {} ====================\n",
                             funcs
                         )?;
@@ -242,12 +246,12 @@ impl<'a> Dump<'a> {
                 }
 
                 SectionCode::Custom { .. } => {
-                    write!(self.dst, "0x{:04x} |", self.cur)?;
+                    write!(self.binary, "0x{:04x} |", self.cur)?;
                     for _ in 0..NBYTES {
-                        write!(self.dst, "---")?;
+                        write!(self.binary, "---")?;
                     }
                     write!(
-                        self.dst,
+                        self.binary,
                         "-| ... {} bytes of data\n",
                         section.get_binary_reader().bytes_remaining()
                     )?;
@@ -294,23 +298,24 @@ impl<'a> Dump<'a> {
     fn print(&mut self, end: usize) -> Result<()> {
         assert!(self.cur < end);
         let bytes = &self.bytes[self.cur..end];
-        write!(self.dst, "0x{:04x} |", self.cur)?;
+        write!(self.binary, "0x{:04x} |", self.cur)?;
         for (i, chunk) in bytes.chunks(NBYTES).enumerate() {
             if i > 0 {
-                self.dst.push_str("       |");
+                self.binary.push_str("       |");
+                self.explain.push_str("");
             }
             for j in 0..NBYTES {
                 match chunk.get(j) {
-                    Some(b) => write!(self.dst, " {:02x}", b)?,
-                    None => write!(self.dst, "   ")?,
+                    Some(b) => write!(self.binary, " {:02x}", b)?,
+                    None => write!(self.binary, "   ")?,
                 }
             }
             if i == 0 {
-                self.dst.push_str(" | ");
-                self.dst.push_str(&self.state);
+                self.explain.push_str(&self.state);
                 self.state.truncate(0);
             }
-            self.dst.push_str("\n");
+            self.explain.push_str("\n");
+            self.binary.push_str("\n");
         }
         self.cur = end;
         Ok(())
