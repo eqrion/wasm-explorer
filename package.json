@@ -1,22 +1,28 @@
 {
-  "author": "Ryan Hunt <rhunt@eqrion.net>",
-  "name": "wasm-explorer",
-  "version": "0.0.2",
-  "repository": "https://github.com/eqrion/wasm-explorer",
-  "license": "Apache-2.0/MIT",
+  "type": "module",
   "scripts": {
-    "start": "parcel index.html",
-    "build": "parcel build index.html",
-    "clean": "rm -r ./dist ./.cache"
-  },
-  "devDependencies": {
-    "parcel-bundler": "^1.12.4",
-    "parcel-plugin-wasm.rs": "^1.2.16",
-    "typescript": "^3.9.5"
+    "build": "npm run build-component && npm run transpile && npm run typecheck && npm run build-js && npm run build-css && npm run copy-files",
+    "build-component": "cd component && cargo component build --release --target wasm32-wasip1",
+    "build-js": "for source in worker.ts index.tsx; do esbuild --bundle --format=esm src/$source --outdir=dist; done",
+    "build-css": "npx @tailwindcss/cli -i ./pages/style.css -o ./dist/style.css",
+    "copy-files": "cp pages/index.html component-built/*.wasm dist",
+    "clean": "rm -rf component/src/bindings.rs component-built dist && echo '## you will need to run `cargo clean` separately to delete cargo artifacts'",
+    "transpile": "jco transpile --no-nodejs-compat ./component/target/wasm32-wasip1/release/component.wasm --out-dir component-built",
+    "typecheck": "tsc --jsx react",
+    "watch": "nodemon --watch 'pages/**/*' --watch 'src/**/*' --watch 'component/**/*' --ext 'html,css,ts,tsx,rs' --exec 'npm run build'"
   },
   "dependencies": {
-    "@tailwindcss/ui": "^0.3.0",
-    "autoprefixer": "^9.8.2",
-    "tailwindcss": "^1.4.6"
+    "@bytecodealliance/jco": "^1.2.4",
+    "@tailwindcss/cli": "^4.1.11",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.1",
+    "tailwindcss": "^4.1.11",
+    "typescript": "^5.4.5"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.9",
+    "@types/react-dom": "^19.1.7",
+    "esbuild": "0.25.5",
+    "nodemon": "3.1.10"
   }
 }

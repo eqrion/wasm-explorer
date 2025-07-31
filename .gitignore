@@ -1,6 +1,4 @@
-.cache
-dist
-node_modules
-crate/pkg
-crate/target
-crate/wasm-pack.log
+node_modules/
+src/bindings.rs
+component-built/
+dist/

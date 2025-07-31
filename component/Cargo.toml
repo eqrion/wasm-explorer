@@ -1,0 +1,21 @@
+[package]
+name = "component"
+publish = false
+edition = "2021"
+
+[dependencies]
+wasmprinter = { version = "0.235.0" }
+wat = { version = "1.235.0" }
+wit-bindgen-rt = { version = "0.26.0", features = ["bitflags"] }
+wasm-decompile = { path = "../../" }
+
+[lib]
+crate-type = ["cdylib"]
+test = false
+doctest = false
+doc = false
+
+[package.metadata.component]
+package = "component:component"
+
+[package.metadata.component.dependencies]
