@@ -1,7 +1,10 @@
-package component:component;
+package local:module;
 
-world wasm-tools {
-    export parse: func(contents: string) -> result<list<u8>, string>;
+interface module {
+    record range {
+        start: u32,
+        end: u32,
+    }
 
     variant print-part {
         str(string),
@@ -12,5 +15,21 @@ world wasm-tools {
         comment,
         reset,
     }
-    export print: func(contents: list<u8>, skeleton: bool) -> result<list<print-part>, string>;
+
+    record item {
+        range: range,
+        name: string,
+    }
+
+    resource module {
+        constructor(init: list<u8>);
+
+        print-rich: func(range: range) -> result<list<print-part>, string>;
+        print-plain: func(range: range) -> result<string, string>;
+        items: func() -> list<item>;
+    }
+}
+
+world wasm-tools {
+    export module;
 }

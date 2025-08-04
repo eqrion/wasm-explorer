@@ -1,33 +1,21 @@
 @import "tailwindcss";
 
-:root {
-  --text-color: #404040;
+.print-name {
+    color: #9F00BD;
 }
 
-html {
-  height: 100%;
+.print-literal {
+    color: #FB0416;
 }
 
-body {
-  font-family: system,-apple-system,system-ui,BlinkMacSystemFont,sans-serif;
-  color: var(--text-color);
-  font-size: 1.2rem;
-  line-height: 1.3;
-  height: calc(100% - 16px - .4rem);
-  display: flex;
-  flex-direction: column;
-  padding: .4rem
+.print-keyword {
+    font-weight: bold;
 }
 
-header {
-  text-align: center;
+.print-type {
+    color: #328A5D;
 }
 
-h1 {
-  margin: 0px;
+.print-comment {
+    color: #B3B3B3;
 }
-
-a {
-  color: var(--text-color);
-}
-

@@ -4,10 +4,10 @@ publish = false
 edition = "2021"
 
 [dependencies]
+anyhow = { version = "1" }
 wasmprinter = { version = "0.235.0" }
-wat = { version = "1.235.0" }
+wasmparser = { version = "0.235.0" }
 wit-bindgen-rt = { version = "0.26.0", features = ["bitflags"] }
-wasm-decompile = { path = "../../" }
 
 [lib]
 crate-type = ["cdylib"]
