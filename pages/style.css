@@ -19,3 +19,14 @@
 .print-comment {
     color: #B3B3B3;
 }
+
+.wat {
+    line-height: 1.5rem;
+    background: repeating-linear-gradient(
+        to bottom,
+        transparent 0,
+        transparent 1.5rem,
+        rgba(0, 0, 0, 0.05) 1.5rem,
+        rgba(0, 0, 0, 0.05) 3rem
+    );
+}

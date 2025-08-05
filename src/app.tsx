@@ -1,32 +1,142 @@
 import * as React from "react";
 import { useState, useEffect, useRef, useMemo } from "react";
-import { module } from '../component-built/component.js';
-import type { Module as ModuleType, Range, PrintPart, Item } from "../component-built/interfaces/local-module-module.d.ts";
-
-let Module = module.Module;
+import { Module } from './module.js';
+import type { Range, PrintPart, Item } from "../component-built/interfaces/local-module-module.d.ts";
+import { createEmitAndSemanticDiagnosticsBuilderProgram } from "typescript";
 
 const MaxBytesForRich = 5 * 1024;
 
-export function App() {
-    const [module, setModule] = useState<ModuleType | null>(null);
-    const [currentItemIndex, setCurrentItemIndex] = useState<number | null>(null);
-    let items = useMemo(() => {
-        if (!module) {
-            return [];
-        }
-        return module.items();
-    }, [module]);
-    let range = currentItemIndex ? items[currentItemIndex].range : (items.length > 0 ? items[0].range : {start: 0, end: 0});
+function LoadingSpinner() {
+    return (
+        <div className="w-full h-full flex items-center justify-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        </div>
+    );
+}
 
-    const handleFileLoad = (content: ArrayBuffer) => {
-        let mod = new Module(new Uint8Array(content));
+class ErrorBoundary extends React.Component<
+    { children: React.ReactNode },
+    { hasError: boolean; error?: Error }
+> {
+    constructor(props: { children: React.ReactNode }) {
+        super(props);
+        this.state = { hasError: false };
+    }
+
+    static getDerivedStateFromError(error: Error) {
+        return { hasError: true, error };
+    }
+
+    componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+        console.error('Error caught by boundary:', error, errorInfo);
+    }
+
+    render() {
+        if (this.state.hasError) {
+            return (
+                <div className="w-screen h-screen flex items-center justify-center bg-gray-100">
+                    <div className="text-center p-8 bg-white rounded-lg shadow-lg max-w-md">
+                        <div className="text-red-500 text-4xl mb-4">⚠️</div>
+                        <h2 className="text-xl font-semibold text-gray-800 mb-2">Something went wrong</h2>
+                        <p className="text-gray-600 mb-4">
+                            An unexpected error occurred while loading the application.
+                        </p>
+                        <button
+                            onClick={() => window.location.reload()}
+                            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                        >
+                            Reload Page
+                        </button>
+                    </div>
+                </div>
+            );
+        }
+
+        return this.props.children;
+    }
+}
+
+export function App() {
+    return (
+        <div className="w-screen h-screen">
+            <ErrorBoundary>
+                <React.Suspense fallback={<LoadingSpinner/>}>
+                    <AppInner/>
+                </React.Suspense>
+            </ErrorBoundary>
+        </div>
+    );
+}
+
+const initialModule = Module.load(new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 7, 1, 96, 2, 127, 127, 1, 127, 3, 2, 1, 0, 7, 7, 1, 3, 97, 100, 100, 0, 0, 10, 9, 1, 7, 0, 32, 0, 32, 1, 106, 11]));
+
+function AppInner() {
+    const [module, setModule] = useState<Promise<Module>>(initialModule);
+    const [range, setRange] = useState<Range>(() => ({start: 0, end: 0}));
+    const [isDragOver, setIsDragOver] = useState(false);
+
+    const handleFileLoad = async (content: ArrayBuffer) => {
+        let mod = Module.load(new Uint8Array(content));
         setModule(mod);
+    };
+    let loadedModule = React.use(module);
+
+    // Drag and drop functionality
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragOver(true);
+    };
+
+    const handleDragLeave = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        // Only hide overlay if leaving the main container
+        if (e.currentTarget === e.target) {
+            setIsDragOver(false);
+        }
+    };
+
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragOver(false);
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            const file = files[0];
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const content = event.target?.result as ArrayBuffer;
+                handleFileLoad(content);
+            };
+            reader.readAsArrayBuffer(file);
+        }
     };
 
     return (
-        <div className="h-screen flex flex-col font-sans bg-gray-100">
-            <Toolbar onFileLoad={handleFileLoad} items={items} setCurrentItemIndex={setCurrentItemIndex} />
-            <WatViewer content={module} range={range}/>
+        <div 
+            className="h-screen flex flex-col font-sans bg-gray-100 relative"
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+        >
+            <Toolbar onFileLoad={handleFileLoad} module={loadedModule} setRange={setRange} />
+            <React.Suspense fallback={<LoadingSpinner/>}>
+                <WatViewer content={loadedModule} range={range}/>
+            </React.Suspense>
+            
+            {isDragOver && (
+                <div className="absolute inset-0 bg-blue-500 bg-opacity-20 flex items-center justify-center z-50 pointer-events-none">
+                    <div className="bg-white rounded-lg shadow-lg p-8 border-2 border-dashed border-blue-500">
+                        <div className="text-center">
+                            <div className="text-2xl text-blue-600 mb-2">📁</div>
+                            <div className="text-lg font-semibold text-gray-800 mb-1">Drop WASM file here</div>
+                            <div className="text-sm text-gray-600">Release to load the module</div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
@@ -36,22 +146,34 @@ export function App() {
 // searching for text in the disassembled wasm file.
 function Toolbar(props: { 
     onFileLoad: (content: ArrayBuffer) => void;
-    items: Item[];
-    setCurrentItemIndex: (index: number) => void;
+    module: Module;
+    setRange: (range: Range) => void;
 }) {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [searchText, setSearchText] = useState("");
     const [showResults, setShowResults] = useState(false);
     const [highlightedIndex, setHighlightedIndex] = useState(-1);
-    
+    const items = props.module.items;
+    useEffect(() => {
+        if (items.length === 0) {
+            props.setRange({start: 0, end: 0});
+        } else {
+            let firstItem = items[0];
+            if (firstItem.name == "all" && firstItem.range.end - firstItem.range.start > MaxBytesForRich) {
+                firstItem = items[1];
+            }
+            props.setRange(firstItem.range);
+        }
+    }, [items]);
+
     // Fuzzy search logic
     const searchResults = useMemo(() => {
-        if (!searchText.trim() || props.items.length === 0) {
+        if (!searchText.trim() || items.length === 0) {
             return [];
         }
         
         const query = searchText.toLowerCase();
-        const matches = props.items
+        const matches = items
             .map((item, index) => {
                 const name = item.name?.toLowerCase() || '';
                 let score = 0;
@@ -82,7 +204,7 @@ function Toolbar(props: {
             .slice(0, 10);
             
         return matches;
-    }, [searchText, props.items]);
+    }, [searchText, items]);
 
     // Check for exact match and update current item index
     useEffect(() => {
@@ -91,10 +213,10 @@ function Toolbar(props: {
                 result.name.toLowerCase() === searchText.toLowerCase()
             );
             if (exactMatch) {
-                props.setCurrentItemIndex(exactMatch.index);
+                props.setRange(items[exactMatch.index].range);
             }
         }
-    }, [searchText, searchResults, props.setCurrentItemIndex]);
+    }, [searchText, searchResults, items]);
 
     const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -117,7 +239,7 @@ function Toolbar(props: {
     const handleResultClick = (resultName: string, resultIndex: number) => {
         setSearchText(resultName);
         setShowResults(false);
-        props.setCurrentItemIndex(resultIndex);
+        props.setRange(items[resultIndex].range);
         setHighlightedIndex(-1);
     };
 
@@ -213,6 +335,10 @@ function toDOM(parts: PrintPart[]) {
         stack[0].append(part.val);
         break;
       }
+      case 'new-line': {
+        stack[0].append("\n");
+        break;
+      }
       case 'name':
       case 'literal':
       case 'keyword':
@@ -241,22 +367,25 @@ function toDOM(parts: PrintPart[]) {
 // A large text display that will hold the 'wat' text format that has been
 // loaded.
 export function WatViewer({ content, range }: { 
-    content: ModuleType | null;
+    content: Module;
     range: Range,
 }) {
-    let body = useMemo(() => {
-        if (!content) {
-            return [];
-        }
-
-        if (range.end - range.start > MaxBytesForRich) {
-            let part: PrintPart = { tag: 'str', val: content.printPlain(range) };
-            return [part];
-        } else {
-            return content.printRich(range);
-        }
+    let [bodyState, setBodyState] = useState<Promise<PrintPart[]>>(() => Promise.resolve([]));
+    useEffect(() => {
+        let items = (async () => {
+            if (range.end - range.start > MaxBytesForRich) {
+                let part: PrintPart = { tag: 'str', val: await content.printPlain(range) };
+                return [part];
+            } else {
+                return await content.printRich(range);
+            }
+        })();
+        setBodyState(items);
     }, [content, range]);
+    let body = React.use(bodyState);
+
     let contents = useRef<HTMLPreElement | null>(null);
+
     useEffect(() => {
         if (!contents.current || !body) {
             return;
@@ -268,17 +397,8 @@ export function WatViewer({ content, range }: {
 
     return (
         <div className="flex-1 overflow-auto bg-white">
-            {content ? (
-                <pre ref={contents} className="p-5 m-0 font-mono text-xs leading-relaxed text-gray-800 whitespace-pre-wrap break-words">
-                </pre>
-            ) : (
-                <div className="flex items-center justify-center h-full text-gray-500 text-base">
-                    <div className="text-center">
-                        <div className="text-5xl mb-4">📄</div>
-                        <div>No WebAssembly module loaded.</div>
-                    </div>
-                </div>
-            )}
+            <pre ref={contents} className="wat p-5 m-0 font-mono text-xs leading-relaxed text-gray-800 whitespace-pre-wrap break-words">
+            </pre>
         </div>
     );
 }

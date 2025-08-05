@@ -12,6 +12,14 @@ struct PlainWriter {
 }
 
 impl wasmprinter::Print for PlainWriter {
+    fn newline(&mut self) -> std::io::Result<()> {
+        if self.current < self.range.start as usize || self.current >= self.range.end as usize {
+            return Ok(());
+        }
+        self.result.push_str("\n");
+        Ok(())
+    }
+
     fn write_str(&mut self, s: &str) -> std::io::Result<()> {
         if self.current < self.range.start as usize || self.current >= self.range.end as usize {
             return Ok(());
@@ -34,6 +42,14 @@ struct RichWriter {
 }
 
 impl wasmprinter::Print for RichWriter {
+    fn newline(&mut self) -> std::io::Result<()> {
+        if self.current < self.range.start as usize || self.current >= self.range.end as usize {
+            return Ok(());
+        }
+        self.parts.push(PrintPart::NewLine);
+        Ok(())
+    }
+
     fn write_str(&mut self, s: &str) -> std::io::Result<()> {
         if self.current < self.range.start as usize || self.current >= self.range.end as usize {
             return Ok(());
@@ -107,8 +123,14 @@ struct Module {
 
 impl GuestModule for Module {
     fn new(init: Vec<u8>) -> Self {
-        Module {
-            bytes: init,
+        if let Ok(std::borrow::Cow::Owned(bytes)) = wat::parse_bytes(init) {
+            Module {
+                bytes
+            }
+        } else {
+            Module {
+                bytes: init,
+            }
         }
     }
 
@@ -152,6 +174,14 @@ fn gather_items(mut bytes: &[u8]) -> anyhow::Result<Vec<Item>> {
     let mut parser = Parser::new(0);
     let mut items = Vec::new();
 
+    items.push(Item {
+        name: "all".to_string(),
+        range: Range {
+            start: 0,
+            end: bytes.len() as u32
+        }
+    });
+
     let mut func_index = 0;
     loop {
         let payload = match parser.parse(bytes, true)? {
@@ -173,6 +203,13 @@ fn gather_items(mut bytes: &[u8]) -> anyhow::Result<Vec<Item>> {
                     range: convert_range(s.range()),
                     name: format!("imports"),
                 });
+                for import in s {
+                    let import = import?;
+                    match import.ty {
+                        TypeRef::Func(_) => func_index += 1,
+                        _ => {}
+                    }
+                }
                 // TODO: add imported functions to func_index
             }
             Payload::FunctionSection(reader) => {}
@@ -225,11 +262,11 @@ fn gather_items(mut bytes: &[u8]) -> anyhow::Result<Vec<Item>> {
                 });
             }
             Payload::CodeSectionEntry(body) => {
-                func_index += 1;
                 items.push(Item {
                     range: convert_range(body.range()),
                     name: format!("func {func_index}"),
                 });
+                func_index += 1;
             }
             Payload::DataCountSection { .. } => {
             }
