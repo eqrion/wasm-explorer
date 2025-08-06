@@ -2,9 +2,11 @@ import * as React from "react";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { Module } from './module.js';
 import type { Range, PrintPart, Item } from "../component-built/interfaces/local-module-module.d.ts";
-import { createEmitAndSemanticDiagnosticsBuilderProgram } from "typescript";
+import { ResizableColumns, type ColumnPanel } from './components/ResizableColumns.js';
+import { TreeView } from './components/TreeView.js';
 
-const MaxBytesForRich = 5 * 1024;
+const MaxBytesForRich = 100 * 1024;
+const initialModule = Module.load(new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 7, 1, 96, 2, 127, 127, 1, 127, 3, 2, 1, 0, 7, 7, 1, 3, 97, 100, 100, 0, 0, 10, 9, 1, 7, 0, 32, 0, 32, 1, 106, 11]));
 
 function LoadingSpinner() {
     return (
@@ -68,18 +70,135 @@ export function App() {
     );
 }
 
-const initialModule = Module.load(new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 7, 1, 96, 2, 127, 127, 1, 127, 3, 2, 1, 0, 7, 7, 1, 3, 97, 100, 100, 0, 0, 10, 9, 1, 7, 0, 32, 0, 32, 1, 106, 11]));
-
 function AppInner() {
     const [module, setModule] = useState<Promise<Module>>(initialModule);
-    const [range, setRange] = useState<Range>(() => ({start: 0, end: 0}));
+    const [item, setItem] = useState<Item | null>(null);
+    const [offset, setOffset] = useState<number | null>(null);
     const [isDragOver, setIsDragOver] = useState(false);
+    let loadedModule = React.use(module);
+
+    useEffect(() => {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("item");
+        url.searchParams.delete("offset");
+        window.history.pushState({}, '', url.toString());
+    }, [loadedModule]);
+
+    useEffect(() => {
+        const updateItemFromURL = () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const itemParam = urlParams.get('item');
+            
+            if (itemParam !== null) {
+                const foundItem = loadedModule.items.find(item => item.name === itemParam);
+                setItem(foundItem || null);
+            } else {
+                setItem(null);
+            }
+        };
+
+        // Update on initial load
+        updateItemFromURL();
+
+        // Listen for URL changes
+        const handlePopState = () => {
+            updateItemFromURL();
+        };
+
+        window.addEventListener('popstate', handlePopState);
+        return () => {
+            window.removeEventListener('popstate', handlePopState)
+        };
+    }, [loadedModule.items]);
+
+    useEffect(() => {
+        const url = new URL(window.location.href);
+        if (item !== null && item.name) {
+            url.searchParams.set('item', item.name);
+        } else {
+            url.searchParams.delete('item');
+        }
+        window.history.pushState({}, '', url.toString());
+    }, [item]);
+
+    useEffect(() => {
+        const updateOffsetFromURL = () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const offsetParam = urlParams.get('offset');
+
+            if (offsetParam !== null) {
+                let parsedOffset: number;
+                if (offsetParam.startsWith("0x")) {
+                    parsedOffset = parseInt(offsetParam.replace("0x", ""), 16);
+                } else {
+                    parsedOffset = parseInt(offsetParam);
+                }
+                if (!isNaN(parsedOffset)) {
+                    setOffset(parsedOffset);
+                } else {
+                    setOffset(null);
+                }
+            } else {
+                setOffset(null);
+            }
+        };
+
+        // Update on initial load
+        updateOffsetFromURL();
+
+        // Listen for URL changes
+        const handlePopState = () => {
+            updateOffsetFromURL();
+        };
+
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, []);
+
+    useEffect(() => {
+        const url = new URL(window.location.href);
+        if (offset !== null) {
+            url.searchParams.set('offset', `0x${offset.toString(16)}`);
+        } else {
+            url.searchParams.delete('offset');
+        }
+        window.history.pushState({}, '', url.toString());
+    }, [offset]);
+
+    useEffect(() => {
+        if (offset !== null && item !== null) {
+            if (offset < item.range.start || offset >= item.range.end) {
+                setOffset(null);
+            }
+        }
+    }, [item, offset]);
+
+    useEffect(() => {
+        if (item === null && offset !== null) {
+            // Find the smallest item that contains the offset
+            let smallestItem: Item | null = null;
+            let smallestSize = Infinity;
+            
+            for (const currentItem of loadedModule.items) {
+                if (offset >= currentItem.range.start && offset < currentItem.range.end) {
+                    const size = currentItem.range.end - currentItem.range.start;
+                    if (size < smallestSize) {
+                        smallestSize = size;
+                        smallestItem = currentItem;
+                    }
+                }
+            }
+            
+            if (smallestItem) {
+                setItem(smallestItem);
+            }
+        }
+    }, [item, offset, loadedModule.items]);
 
     const handleFileLoad = async (content: ArrayBuffer) => {
         let mod = Module.load(new Uint8Array(content));
         setModule(mod);
     };
-    let loadedModule = React.use(module);
 
     // Drag and drop functionality
     const handleDragOver = (e: React.DragEvent) => {
@@ -114,6 +233,31 @@ function AppInner() {
         }
     };
 
+    const panels: ColumnPanel[] = useMemo(() => [
+        {
+            id: 'wat-viewer',
+            title: 'Text Format',
+            content: (
+                <React.Suspense fallback={<LoadingSpinner/>}>
+                    <WatViewer content={loadedModule} item={item} offset={offset} setOffset={setOffset}/>
+                </React.Suspense>
+            ),
+            defaultWidth: 60,
+            minWidth: 20
+        },
+        {
+            id: 'tree-view',
+            title: 'Navigator',
+            content: <TreeView items={loadedModule.items} onItemSelected={(index) => {
+                if (index >= 0 && loadedModule.items[index]) {
+                    setItem(loadedModule.items[index]);
+                }
+            }}/>,
+            defaultWidth: 40,
+            minWidth: 15
+        }
+    ], [loadedModule, item, offset]);
+
     return (
         <div 
             className="h-screen flex flex-col font-sans bg-gray-100 relative"
@@ -121,10 +265,11 @@ function AppInner() {
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
         >
-            <Toolbar onFileLoad={handleFileLoad} module={loadedModule} setRange={setRange} />
-            <React.Suspense fallback={<LoadingSpinner/>}>
-                <WatViewer content={loadedModule} range={range}/>
-            </React.Suspense>
+            <Toolbar onFileLoad={handleFileLoad} module={loadedModule}/>
+
+            <div className="flex-1 overflow-hidden">
+                <ResizableColumns panels={panels} />
+            </div>
             
             {isDragOver && (
                 <div className="absolute inset-0 bg-blue-500 bg-opacity-20 flex items-center justify-center z-50 pointer-events-none">
@@ -141,82 +286,11 @@ function AppInner() {
     );
 }
 
-// Top toolbar with actions for the application.
-// Contains a 'open' button for loading a wasm file, and a search bar for
-// searching for text in the disassembled wasm file.
 function Toolbar(props: { 
     onFileLoad: (content: ArrayBuffer) => void;
     module: Module;
-    setRange: (range: Range) => void;
 }) {
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const [searchText, setSearchText] = useState("");
-    const [showResults, setShowResults] = useState(false);
-    const [highlightedIndex, setHighlightedIndex] = useState(-1);
-    const items = props.module.items;
-    useEffect(() => {
-        if (items.length === 0) {
-            props.setRange({start: 0, end: 0});
-        } else {
-            let firstItem = items[0];
-            if (firstItem.name == "all" && firstItem.range.end - firstItem.range.start > MaxBytesForRich) {
-                firstItem = items[1];
-            }
-            props.setRange(firstItem.range);
-        }
-    }, [items]);
-
-    // Fuzzy search logic
-    const searchResults = useMemo(() => {
-        if (!searchText.trim() || items.length === 0) {
-            return [];
-        }
-        
-        const query = searchText.toLowerCase();
-        const matches = items
-            .map((item, index) => {
-                const name = item.name?.toLowerCase() || '';
-                let score = 0;
-                
-                // Exact match gets highest score
-                if (name === query) {
-                    score = 1000;
-                } else if (name.includes(query)) {
-                    score = 500 + (100 - name.indexOf(query));
-                } else {
-                    // Fuzzy matching - count matching characters in order
-                    let queryIndex = 0;
-                    for (let i = 0; i < name.length && queryIndex < query.length; i++) {
-                        if (name[i] === query[queryIndex]) {
-                            queryIndex++;
-                            score += 10;
-                        }
-                    }
-                    if (queryIndex < query.length) {
-                        score = 0; // Not all query characters found
-                    }
-                }
-                
-                return { item, index, score, name: item.name || '' };
-            })
-            .filter(match => match.score > 0)
-            .sort((a, b) => b.score - a.score)
-            .slice(0, 10);
-            
-        return matches;
-    }, [searchText, items]);
-
-    // Check for exact match and update current item index
-    useEffect(() => {
-        if (searchText.trim()) {
-            const exactMatch = searchResults.find(result => 
-                result.name.toLowerCase() === searchText.toLowerCase()
-            );
-            if (exactMatch) {
-                props.setRange(items[exactMatch.index].range);
-            }
-        }
-    }, [searchText, searchResults, items]);
 
     const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -230,51 +304,15 @@ function Toolbar(props: {
         }
     };
 
-    const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        setSearchText(event.target.value);
-        setShowResults(true);
-        setHighlightedIndex(-1);
-    };
-
-    const handleResultClick = (resultName: string, resultIndex: number) => {
-        setSearchText(resultName);
-        setShowResults(false);
-        props.setRange(items[resultIndex].range);
-        setHighlightedIndex(-1);
-    };
-
-    const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-        if (!showResults || searchResults.length === 0) return;
-
-        switch (event.key) {
-            case 'ArrowDown':
-                event.preventDefault();
-                setHighlightedIndex(prev => 
-                    prev >= searchResults.length - 1 ? 0 : prev + 1
-                );
-                break;
-            case 'ArrowUp':
-                event.preventDefault();
-                setHighlightedIndex(prev => 
-                    prev <= 0 ? searchResults.length - 1 : prev - 1
-                );
-                break;
-            case 'Enter':
-                event.preventDefault();
-                if (highlightedIndex >= 0 && highlightedIndex < searchResults.length) {
-                    const result = searchResults[highlightedIndex];
-                    handleResultClick(result.name, result.index);
-                }
-                break;
-            case 'Escape':
-                setShowResults(false);
-                setHighlightedIndex(-1);
-                break;
-        }
-    };
-
     return (
         <div className="flex items-center px-4 py-3 bg-gray-50 border-b border-gray-200 gap-4 shadow-sm">
+            <div className="flex items-center gap-2">
+                <WasmLogo />
+                <span className="text-lg font-semibold text-gray-800">WebAssembly Explorer</span>
+            </div>
+
+            <div className="flex-1" />
+
             <button
                 onClick={() => fileInputRef.current?.click()}
                 className="px-4 py-2 bg-blue-600 text-white border-none rounded cursor-pointer text-sm font-medium hover:bg-blue-700 transition-colors"
@@ -288,46 +326,26 @@ function Toolbar(props: {
                 onChange={handleFileSelect}
                 className="hidden"
             />
-            
-            <div className="flex-1" />
-            
-            <div className="relative">
-                <input
-                    type="text"
-                    placeholder="Search..."
-                    value={searchText}
-                    onChange={handleSearchChange}
-                    onKeyDown={handleKeyDown}
-                    onFocus={() => setShowResults(true)}
-                    onBlur={() => setTimeout(() => setShowResults(false), 200)}
-                    className="px-3 py-2 bg-white border border-gray-300 rounded text-sm w-64 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                />
-                {showResults && searchResults.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded shadow-lg z-10 max-h-64 overflow-y-auto">
-                        {searchResults.map((result, index) => (
-                            <div
-                                key={result.index}
-                                className={`px-3 py-2 cursor-pointer text-sm border-b border-gray-100 last:border-b-0 ${
-                                    index === highlightedIndex 
-                                        ? 'bg-blue-100 text-blue-900' 
-                                        : 'hover:bg-gray-100'
-                                }`}
-                                onClick={() => handleResultClick(result.name, result.index)}
-                            >
-                                {result.name}
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </div>
         </div>
     );
 }
 
-let isCall = /call \d+/;
+function WasmLogo() {
+    return (
+        <img 
+            src="./logo.svg" 
+            alt="WebAssembly Logo" 
+            width="32" 
+            height="32" 
+            className="text-blue-600"
+        />
+    );
+}
 
-function toDOM(parts: PrintPart[]) {
+function renderRichPrint(parts: PrintPart[], selectedOffset: number | null) {
   let root = document.createElement('span');
+  let offsets = document.createElement('div');
+
   let stack = [root];
   for (let part of parts) {
     switch (part.tag) {
@@ -337,6 +355,15 @@ function toDOM(parts: PrintPart[]) {
       }
       case 'new-line': {
         stack[0].append("\n");
+
+        let offset = document.createElement('div');
+        offset.innerText = `0x${part.val.toString(16)}`;
+        offset.className = 'print-newline';
+        offset.setAttribute("data-offset", ""+part.val);
+        if (part.val == selectedOffset) {
+            offset.classList.add("print-newline-selected");
+        }
+        offsets.append(offset);
         break;
       }
       case 'name':
@@ -361,17 +388,26 @@ function toDOM(parts: PrintPart[]) {
       }
     }
   }
-  return root;
+
+  return [root, offsets];
 }
 
-// A large text display that will hold the 'wat' text format that has been
-// loaded.
-export function WatViewer({ content, range }: { 
+const emptyRange = {start: 0, end: 0};
+
+export function WatViewer({ content, item, offset, setOffset }: { 
     content: Module;
-    range: Range,
+    item: Item | null,
+    offset: number | null,
+    setOffset: (offset: number) => void,
 }) {
     let [bodyState, setBodyState] = useState<Promise<PrintPart[]>>(() => Promise.resolve([]));
+
     useEffect(() => {
+        if (!item) {
+            return;
+        }
+
+        let range = item.range;
         let items = (async () => {
             if (range.end - range.start > MaxBytesForRich) {
                 let part: PrintPart = { tag: 'str', val: await content.printPlain(range) };
@@ -381,23 +417,62 @@ export function WatViewer({ content, range }: {
             }
         })();
         setBodyState(items);
-    }, [content, range]);
+    }, [content, item]);
+
     let body = React.use(bodyState);
 
     let contents = useRef<HTMLPreElement | null>(null);
+    let offsets = useRef<HTMLPreElement | null>(null);
 
     useEffect(() => {
-        if (!contents.current || !body) {
+        if (!contents.current || !offsets.current || !body) {
             return;
         }
-        let span = toDOM(body);
+        let [newContents, newOffsets] = renderRichPrint(body, offset);
         contents.current.innerHTML = "";
-        contents.current.appendChild(span);
-    }, [body]);
+        contents.current.appendChild(newContents);
+        offsets.current.innerHTML = "";
+        offsets.current.appendChild(newOffsets);
+    }, [body, offset]);
 
+    useEffect(() => {
+        if (!offsets.current) {
+            return;
+        }
+
+        let targetElement = offsets.current.querySelector(`[data-offset="${offset}"]`);
+        if (targetElement) {
+            targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }, [offset]);
+
+    if (!item) {
+        return (
+            <div className="h-full flex items-center justify-center text-gray-500">
+                Nothing selected yet.
+            </div>
+        );
+    }
     return (
-        <div className="flex-1 overflow-auto bg-white">
-            <pre ref={contents} className="wat p-5 m-0 font-mono text-xs leading-relaxed text-gray-800 whitespace-pre-wrap break-words">
+        <div className="flex-1 overflow-auto bg-white flex min-h-full">
+            <pre
+                ref={offsets}
+                className="wat font-mono text-xs leading-relaxed text-gray-800 whitespace-pre-wrap break-words"
+                onClick={(e) => {
+                    if (e.target && e.target instanceof HTMLDivElement && e.target.hasAttribute("data-offset")) {
+                        let offsetString = e.target.getAttribute("data-offset");
+                        if (offsetString === null) {
+                            return;
+                        }
+                        let offset = parseInt(offsetString);
+                        if (isNaN(offset)) {
+                            return;
+                        }
+                        setOffset(offset);
+                    }
+                }}>
+            </pre>
+            <pre ref={contents} className="wat flex-1 font-mono text-xs leading-relaxed text-gray-800 whitespace-pre-wrap break-words">
             </pre>
         </div>
     );

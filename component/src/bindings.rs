@@ -32,7 +32,7 @@ pub mod exports {
                 #[derive(Clone)]
                 pub enum PrintPart {
                     Str(_rt::String),
-                    NewLine,
+                    NewLine(u32),
                     Name,
                     Literal,
                     Keyword,
@@ -49,8 +49,8 @@ pub mod exports {
                             PrintPart::Str(e) => {
                                 f.debug_tuple("PrintPart::Str").field(e).finish()
                             }
-                            PrintPart::NewLine => {
-                                f.debug_tuple("PrintPart::NewLine").finish()
+                            PrintPart::NewLine(e) => {
+                                f.debug_tuple("PrintPart::NewLine").field(e).finish()
                             }
                             PrintPart::Name => f.debug_tuple("PrintPart::Name").finish(),
                             PrintPart::Literal => {
@@ -271,8 +271,11 @@ pub mod exports {
                                                 .add(::core::mem::size_of::<*const u8>())
                                                 .cast::<*mut u8>() = ptr2.cast_mut();
                                         }
-                                        PrintPart::NewLine => {
+                                        PrintPart::NewLine(e) => {
                                             *base.add(0).cast::<u8>() = (1i32) as u8;
+                                            *base
+                                                .add(::core::mem::size_of::<*const u8>())
+                                                .cast::<i32>() = _rt::as_i32(e);
                                         }
                                         PrintPart::Name => {
                                             *base.add(0).cast::<u8>() = (2i32) as u8;
@@ -728,14 +731,6 @@ mod _rt {
         wit_bindgen_rt::run_ctors_once();
     }
     pub use alloc_crate::vec::Vec;
-    pub use alloc_crate::alloc;
-    pub unsafe fn cabi_dealloc(ptr: *mut u8, size: usize, align: usize) {
-        if size == 0 {
-            return;
-        }
-        let layout = alloc::Layout::from_size_align_unchecked(size, align);
-        alloc::dealloc(ptr, layout);
-    }
     pub fn as_i32<T: AsI32>(t: T) -> i32 {
         t.as_i32()
     }
@@ -795,6 +790,14 @@ mod _rt {
             self as i32
         }
     }
+    pub use alloc_crate::alloc;
+    pub unsafe fn cabi_dealloc(ptr: *mut u8, size: usize, align: usize) {
+        if size == 0 {
+            return;
+        }
+        let layout = alloc::Layout::from_size_align_unchecked(size, align);
+        alloc::dealloc(ptr, layout);
+    }
     extern crate alloc as alloc_crate;
 }
 /// Generates `#[unsafe(no_mangle)]` functions to export the specified type as
@@ -833,19 +836,19 @@ pub(crate) use __export_wasm_tools_impl as export;
 )]
 #[doc(hidden)]
 #[allow(clippy::octal_escapes)]
-pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 537] = *b"\
-\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\x98\x03\x01A\x02\x01\
+pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 538] = *b"\
+\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\x99\x03\x01A\x02\x01\
 A\x02\x01B\x16\x01r\x02\x05starty\x03endy\x04\0\x05range\x03\0\0\x01q\x08\x03str\
-\x01s\0\x08new-line\0\0\x04name\0\0\x07literal\0\0\x07keyword\0\0\x04type\0\0\x07\
-comment\0\0\x05reset\0\0\x04\0\x0aprint-part\x03\0\x02\x01r\x02\x05range\x01\x04\
-names\x04\0\x04item\x03\0\x04\x04\0\x06module\x03\x01\x01p}\x01i\x06\x01@\x01\x04\
-init\x07\0\x08\x04\0\x13[constructor]module\x01\x09\x01h\x06\x01p\x03\x01j\x01\x0b\
-\x01s\x01@\x02\x04self\x0a\x05range\x01\0\x0c\x04\0\x19[method]module.print-rich\
-\x01\x0d\x01j\x01s\x01s\x01@\x02\x04self\x0a\x05range\x01\0\x0e\x04\0\x1a[method\
-]module.print-plain\x01\x0f\x01p\x05\x01@\x01\x04self\x0a\0\x10\x04\0\x14[method\
-]module.items\x01\x11\x04\0\x13local:module/module\x05\0\x04\0\x17local:module/w\
-asm-tools\x04\0\x0b\x10\x01\0\x0awasm-tools\x03\0\0\0G\x09producers\x01\x0cproce\
-ssed-by\x02\x0dwit-component\x070.227.1\x10wit-bindgen-rust\x060.41.0";
+\x01s\0\x08new-line\x01y\0\x04name\0\0\x07literal\0\0\x07keyword\0\0\x04type\0\0\
+\x07comment\0\0\x05reset\0\0\x04\0\x0aprint-part\x03\0\x02\x01r\x02\x05range\x01\
+\x04names\x04\0\x04item\x03\0\x04\x04\0\x06module\x03\x01\x01p}\x01i\x06\x01@\x01\
+\x04init\x07\0\x08\x04\0\x13[constructor]module\x01\x09\x01h\x06\x01p\x03\x01j\x01\
+\x0b\x01s\x01@\x02\x04self\x0a\x05range\x01\0\x0c\x04\0\x19[method]module.print-\
+rich\x01\x0d\x01j\x01s\x01s\x01@\x02\x04self\x0a\x05range\x01\0\x0e\x04\0\x1a[me\
+thod]module.print-plain\x01\x0f\x01p\x05\x01@\x01\x04self\x0a\0\x10\x04\0\x14[me\
+thod]module.items\x01\x11\x04\0\x13local:module/module\x05\0\x04\0\x17local:modu\
+le/wasm-tools\x04\0\x0b\x10\x01\0\x0awasm-tools\x03\0\0\0G\x09producers\x01\x0cp\
+rocessed-by\x02\x0dwit-component\x070.227.1\x10wit-bindgen-rust\x060.41.0";
 #[inline(never)]
 #[doc(hidden)]
 pub fn __link_custom_section_describing_imports() {

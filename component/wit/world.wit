@@ -8,7 +8,7 @@ interface module {
 
     variant print-part {
         str(string),
-        new-line,
+        new-line(u32),
         name,
         literal,
         keyword,

@@ -4,6 +4,28 @@
     color: #9F00BD;
 }
 
+.print-newline {
+    text-align: right;
+    color: #B3B3B3;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.print-newline:hover {
+    color: #666666;
+    text-decoration: underline;
+}
+
+.print-newline:active {
+    color: #333333;
+    text-decoration: underline;
+}
+
+.print-newline-selected {
+    color: #333333;
+    text-decoration: underline;
+}
+
 .print-literal {
     color: #FB0416;
 }
@@ -21,12 +43,15 @@
 }
 
 .wat {
+    padding: 1.5rem;
     line-height: 1.5rem;
     background: repeating-linear-gradient(
         to bottom,
-        transparent 0,
+        rgba(0, 0, 0, 0.025) 0,
+        rgba(0, 0, 0, 0.025) 1.5rem,
         transparent 1.5rem,
-        rgba(0, 0, 0, 0.05) 1.5rem,
-        rgba(0, 0, 0, 0.05) 3rem
+         transparent 3rem
     );
+    background-position-y: -1.5rem;
+    min-height: 100%;
 }

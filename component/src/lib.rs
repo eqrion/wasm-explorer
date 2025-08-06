@@ -46,12 +46,16 @@ impl wasmprinter::Print for RichWriter {
         if self.current < self.range.start as usize || self.current >= self.range.end as usize {
             return Ok(());
         }
-        self.parts.push(PrintPart::NewLine);
+        self.parts.push(PrintPart::NewLine(self.current as u32));
         Ok(())
     }
 
     fn write_str(&mut self, s: &str) -> std::io::Result<()> {
         if self.current < self.range.start as usize || self.current >= self.range.end as usize {
+            return Ok(());
+        }
+        if let Some(PrintPart::Str(last_str)) = self.parts.last_mut() {
+            last_str.push_str(s);
             return Ok(());
         }
         self.parts.push(PrintPart::Str(s.to_string()));
@@ -123,7 +127,7 @@ struct Module {
 
 impl GuestModule for Module {
     fn new(init: Vec<u8>) -> Self {
-        if let Ok(std::borrow::Cow::Owned(bytes)) = wat::parse_bytes(init) {
+        if let Ok(std::borrow::Cow::Owned(bytes)) = wat::parse_bytes(&init) {
             Module {
                 bytes
             }
@@ -171,17 +175,9 @@ fn convert_range(r: std::ops::Range<usize>) -> Range {
 
 fn gather_items(mut bytes: &[u8]) -> anyhow::Result<Vec<Item>> {
     use wasmparser::*;
+    
     let mut parser = Parser::new(0);
     let mut items = Vec::new();
-
-    items.push(Item {
-        name: "all".to_string(),
-        range: Range {
-            start: 0,
-            end: bytes.len() as u32
-        }
-    });
-
     let mut func_index = 0;
     loop {
         let payload = match parser.parse(bytes, true)? {
@@ -210,7 +206,6 @@ fn gather_items(mut bytes: &[u8]) -> anyhow::Result<Vec<Item>> {
                         _ => {}
                     }
                 }
-                // TODO: add imported functions to func_index
             }
             Payload::FunctionSection(reader) => {}
             Payload::TableSection(s) => {
@@ -258,7 +253,7 @@ fn gather_items(mut bytes: &[u8]) -> anyhow::Result<Vec<Item>> {
             Payload::CodeSectionStart { range, .. } => {
                 items.push(Item {
                     range: convert_range(range),
-                    name: format!("functions"),
+                    name: format!("funcs"),
                 });
             }
             Payload::CodeSectionEntry(body) => {
@@ -287,5 +282,53 @@ fn gather_items(mut bytes: &[u8]) -> anyhow::Result<Vec<Item>> {
 
     Ok(items)
 }
+
+// TODO
+// fn collect_names(mut bytes: &[u8]) -> anyhow::Result<std::collections::HashMap<u32, String>> {
+//     use wasmparser::*;
+//     let mut parser = Parser::new(0);
+//     let mut function_names = std::collections::HashMap::new();
+    
+//     loop {
+//         let payload = match parser.parse(bytes, true)? {
+//             Chunk::NeedMoreData(_) => unreachable!(),
+//             Chunk::Parsed { payload, consumed } => {
+//                 bytes = &bytes[consumed..];
+//                 payload
+//             }
+//         };
+        
+//         match payload {
+//             Payload::CustomSection(reader) if reader.name() == "name" => {
+//                 let binary_reader = BinaryReader::new(reader.data(), reader.data_offset());
+//                 let reader = NameSectionReader::new(binary_reader);
+
+//                 for subsection in reader {
+//                     let subsection = subsection?;
+
+//                     match subsection {
+//                         Name::Module { name, name_range } => todo!(),
+//                         Name::Function(section_limited) => todo!(),
+//                         // Name::Local(section_limited) => todo!(),
+//                         // Name::Label(section_limited) => todo!(),
+//                         // Name::Type(section_limited) => todo!(),
+//                         // Name::Table(section_limited) => todo!(),
+//                         // Name::Memory(section_limited) => todo!(),
+//                         // Name::Global(section_limited) => todo!(),
+//                         // Name::Element(section_limited) => todo!(),
+//                         // Name::Data(section_limited) => todo!(),
+//                         // Name::Field(section_limited) => todo!(),
+//                         // Name::Tag(section_limited) => todo!(),
+//                         // Name::Unknown { ty, data, range } => todo!(),
+//                     }
+//                 }
+//             }
+//             Payload::End(_) => break,
+//             _ => {}
+//         }
+//     }
+    
+//     Ok(function_names)
+// }
 
 bindings::export!(Component with_types_in bindings);
