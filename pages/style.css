@@ -2,6 +2,17 @@
 
 .print-name {
   color: #9f00bd;
+  cursor: pointer;
+}
+
+.print-name:hover {
+  color: #666666;
+  text-decoration: underline;
+}
+
+.print-name:active {
+  color: #333333;
+  text-decoration: underline;
 }
 
 .print-newline {

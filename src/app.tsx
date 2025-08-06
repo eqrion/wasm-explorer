@@ -1,6 +1,7 @@
 import * as React from "react";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { Module } from "./module.js";
+import { fuzzy } from "./utilities.js";
 import type {
   Range,
   PrintPart,
@@ -11,6 +12,7 @@ import {
   type ColumnPanel,
 } from "./components/ResizableColumns.js";
 import { TreeView } from "./components/TreeView.js";
+import { ItemPicker } from "./components/ItemPicker.js";
 
 const MaxBytesForRich = 100 * 1024;
 const initialModule = Module.load(
@@ -89,6 +91,8 @@ function AppInner() {
   const [item, setItem] = useState<Item | null>(null);
   const [offset, setOffset] = useState<number | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [showItemPicker, setShowItemPicker] = useState(false);
+  const [searchResults, setSearchResults] = useState<Item[]>([]);
   let loadedModule = React.use(module);
 
   useEffect(() => {
@@ -252,6 +256,26 @@ function AppInner() {
     }
   };
 
+  const searchXRef = (xref: string) => {
+    let items = loadedModule.items;
+
+    // Do an exact match search
+    let exactMatchIndex = items.findIndex((x) => x.name === xref);
+    if (exactMatchIndex !== -1) {
+      setItem(items[exactMatchIndex]);
+      return;
+    }
+
+    // Fallback to fuzzy search
+    const foundItems = fuzzy(items, xref);
+    if (foundItems.length === 1) {
+      setItem(foundItems[0]);
+    } else if (foundItems.length > 1) {
+      setSearchResults(foundItems);
+      setShowItemPicker(true);
+    }
+  };
+
   const panels: ColumnPanel[] = useMemo(
     () => [
       {
@@ -264,6 +288,7 @@ function AppInner() {
               item={item}
               offset={offset}
               setOffset={setOffset}
+              searchXRef={searchXRef}
             />
           </React.Suspense>
         ),
@@ -302,6 +327,17 @@ function AppInner() {
       <div className="flex-1 overflow-hidden">
         <ResizableColumns panels={panels} />
       </div>
+
+      {showItemPicker && (
+        <ItemPicker
+          items={searchResults}
+          onSelect={(selectedItem) => {
+            setItem(selectedItem);
+            setShowItemPicker(false);
+          }}
+          onClose={() => setShowItemPicker(false)}
+        />
+      )}
 
       {isDragOver && (
         <div className="absolute inset-0 bg-blue-500 bg-opacity-20 flex items-center justify-center z-50 pointer-events-none">
@@ -437,11 +473,13 @@ export function WatViewer({
   item,
   offset,
   setOffset,
+  searchXRef,
 }: {
   content: Module;
   item: Item | null;
   offset: number | null;
   setOffset: (offset: number) => void;
+  searchXRef: (xref: string) => void;
 }) {
   let [bodyState, setBodyState] = useState<Promise<PrintPart[]>>(() =>
     Promise.resolve([]),
@@ -496,6 +534,46 @@ export function WatViewer({
     }
   }, [offset]);
 
+  let onClickOffsets = (e: React.MouseEvent<HTMLPreElement, MouseEvent>) => {
+    if (
+      e.target &&
+      e.target instanceof HTMLDivElement &&
+      e.target.hasAttribute("data-offset")
+    ) {
+      let offsetString = e.target.getAttribute("data-offset");
+      if (offsetString === null) {
+        return;
+      }
+      let offset = parseInt(offsetString);
+      if (isNaN(offset)) {
+        return;
+      }
+      setOffset(offset);
+    }
+  };
+  let onClickContents = (e: React.MouseEvent<HTMLPreElement, MouseEvent>) => {
+    if (
+      e.target &&
+      e.target instanceof HTMLSpanElement &&
+      e.target.classList.contains("print-name")
+    ) {
+      let xref = e.target.innerText;
+      let xrefIsIndex = !isNaN(parseInt(xref));
+
+      let textNode = e.target.previousSibling;
+      if (xrefIsIndex && textNode && textNode.nodeType === Node.TEXT_NODE) {
+        let text = (textNode.textContent ?? "").trimEnd();
+        if (text.endsWith("call") || text.endsWith("func")) {
+          xref = "func " + xref;
+        } else if (text.endsWith("type")) {
+          xref = "type " + xref;
+        }
+      }
+
+      searchXRef(xref);
+    }
+  };
+
   if (!item) {
     return (
       <div className="h-full flex items-center justify-center text-gray-500">
@@ -508,27 +586,12 @@ export function WatViewer({
       <pre
         ref={offsets}
         className="wat font-mono text-xs leading-relaxed text-gray-800 whitespace-pre-wrap break-words"
-        onClick={(e) => {
-          if (
-            e.target &&
-            e.target instanceof HTMLDivElement &&
-            e.target.hasAttribute("data-offset")
-          ) {
-            let offsetString = e.target.getAttribute("data-offset");
-            if (offsetString === null) {
-              return;
-            }
-            let offset = parseInt(offsetString);
-            if (isNaN(offset)) {
-              return;
-            }
-            setOffset(offset);
-          }
-        }}
+        onClick={onClickOffsets}
       ></pre>
       <pre
         ref={contents}
         className="wat flex-1 font-mono text-xs leading-relaxed text-gray-800 whitespace-pre-wrap break-words"
+        onClick={onClickContents}
       ></pre>
     </div>
   );
