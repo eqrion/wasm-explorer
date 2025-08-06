@@ -13,6 +13,7 @@ import {
 } from "./components/ResizableColumns.js";
 import { TreeView } from "./components/TreeView.js";
 import { ItemPicker } from "./components/ItemPicker.js";
+import { createIncrementalCompilerHost } from "typescript";
 
 const MaxBytesForRich = 100 * 1024;
 const initialModule = Module.load(
@@ -94,10 +95,25 @@ function AppInner() {
   const [showItemPicker, setShowItemPicker] = useState(false);
   const [searchResults, setSearchResults] = useState<Item[]>([]);
   let loadedModule = React.use(module);
+  let items = loadedModule.items;
+  let selectedItemIndex: number | null = !item
+    ? null
+    : items.findIndex((x) => x === item);
+  if (selectedItemIndex === -1) {
+    selectedItemIndex = null;
+  }
 
   useEffect(() => {
     const url = new URL(window.location.href);
-    url.searchParams.delete("item");
+    if (
+      items.length > 0 &&
+      items[0].range.end - items[0].range.start <= MaxBytesForRich
+    ) {
+      console.log("setting");
+      url.searchParams.set("item", items[0].name);
+    } else {
+      url.searchParams.delete("item");
+    }
     url.searchParams.delete("offset");
     window.history.pushState({}, "", url.toString());
   }, [loadedModule]);
@@ -108,9 +124,7 @@ function AppInner() {
       const itemParam = urlParams.get("item");
 
       if (itemParam !== null) {
-        const foundItem = loadedModule.items.find(
-          (item) => item.name === itemParam,
-        );
+        const foundItem = items.find((item) => item.name === itemParam);
         setItem(foundItem || null);
       } else {
         setItem(null);
@@ -129,7 +143,7 @@ function AppInner() {
     return () => {
       window.removeEventListener("popstate", handlePopState);
     };
-  }, [loadedModule.items]);
+  }, [items]);
 
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -199,7 +213,7 @@ function AppInner() {
       let smallestItem: Item | null = null;
       let smallestSize = Infinity;
 
-      for (const currentItem of loadedModule.items) {
+      for (const currentItem of items) {
         if (
           offset >= currentItem.range.start &&
           offset < currentItem.range.end
@@ -216,7 +230,7 @@ function AppInner() {
         setItem(smallestItem);
       }
     }
-  }, [item, offset, loadedModule.items]);
+  }, [item, offset, items]);
 
   const handleFileLoad = async (content: ArrayBuffer) => {
     let mod = Module.load(new Uint8Array(content));
@@ -257,8 +271,6 @@ function AppInner() {
   };
 
   const searchXRef = (xref: string) => {
-    let items = loadedModule.items;
-
     // Do an exact match search
     let exactMatchIndex = items.findIndex((x) => x.name === xref);
     if (exactMatchIndex !== -1) {
@@ -301,6 +313,7 @@ function AppInner() {
         content: (
           <TreeView
             items={loadedModule.items}
+            selectedItem={selectedItemIndex}
             onItemSelected={(index) => {
               if (index >= 0 && loadedModule.items[index]) {
                 setItem(loadedModule.items[index]);

@@ -172,8 +172,17 @@ fn convert_range(r: std::ops::Range<usize>) -> Range {
 fn gather_items(mut bytes: &[u8]) -> anyhow::Result<Vec<Item>> {
     use wasmparser::*;
 
-    let mut parser = Parser::new(0);
     let mut items = Vec::new();
+
+    items.push(Item {
+        range: Range {
+            start: 0,
+            end: bytes.len() as u32,
+        },
+        name: format!("module"),
+    });
+
+    let mut parser = Parser::new(0);
     let mut func_index = 0;
     loop {
         let payload = match parser.parse(bytes, true)? {

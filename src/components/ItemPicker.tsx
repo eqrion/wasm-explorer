@@ -26,7 +26,7 @@ export const ItemPicker: React.FC<ItemPickerProps> = ({
     if (highlightedItemRef.current) {
       highlightedItemRef.current.scrollIntoView({
         behavior: "instant",
-        block: "nearest",
+        block: "center",
       });
     }
   }, []);
