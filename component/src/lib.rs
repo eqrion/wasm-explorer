@@ -1,7 +1,7 @@
 #[allow(warnings)]
 mod bindings;
 
-use bindings::exports::local::module::module::{Guest, GuestModule, Range, Item, PrintPart};
+use bindings::exports::local::module::module::{Guest, GuestModule, Item, PrintPart, Range};
 
 struct Component;
 
@@ -128,13 +128,9 @@ struct Module {
 impl GuestModule for Module {
     fn new(init: Vec<u8>) -> Self {
         if let Ok(std::borrow::Cow::Owned(bytes)) = wat::parse_bytes(&init) {
-            Module {
-                bytes
-            }
+            Module { bytes }
         } else {
-            Module {
-                bytes: init,
-            }
+            Module { bytes: init }
         }
     }
 
@@ -143,7 +139,7 @@ impl GuestModule for Module {
         let mut writer = RichWriter {
             parts: Vec::new(),
             range: r,
-            current: 0
+            current: 0,
         };
         let result = config.print(&self.bytes, &mut writer);
         result.map(|_| writer.parts).map_err(|e| e.to_string())
@@ -154,7 +150,7 @@ impl GuestModule for Module {
         let mut writer = PlainWriter {
             result: String::new(),
             range: r,
-            current: 0
+            current: 0,
         };
         let result = config.print(&self.bytes, &mut writer);
         result.map(|_| writer.result).map_err(|e| e.to_string())
@@ -175,7 +171,7 @@ fn convert_range(r: std::ops::Range<usize>) -> Range {
 
 fn gather_items(mut bytes: &[u8]) -> anyhow::Result<Vec<Item>> {
     use wasmparser::*;
-    
+
     let mut parser = Parser::new(0);
     let mut items = Vec::new();
     let mut func_index = 0;
@@ -263,8 +259,7 @@ fn gather_items(mut bytes: &[u8]) -> anyhow::Result<Vec<Item>> {
                 });
                 func_index += 1;
             }
-            Payload::DataCountSection { .. } => {
-            }
+            Payload::DataCountSection { .. } => {}
             Payload::DataSection(s) => {
                 items.push(Item {
                     range: convert_range(s.range()),
@@ -276,7 +271,7 @@ fn gather_items(mut bytes: &[u8]) -> anyhow::Result<Vec<Item>> {
                 break;
             }
 
-            _ => {},
+            _ => {}
         }
     }
 
@@ -288,7 +283,7 @@ fn gather_items(mut bytes: &[u8]) -> anyhow::Result<Vec<Item>> {
 //     use wasmparser::*;
 //     let mut parser = Parser::new(0);
 //     let mut function_names = std::collections::HashMap::new();
-    
+
 //     loop {
 //         let payload = match parser.parse(bytes, true)? {
 //             Chunk::NeedMoreData(_) => unreachable!(),
@@ -297,7 +292,7 @@ fn gather_items(mut bytes: &[u8]) -> anyhow::Result<Vec<Item>> {
 //                 payload
 //             }
 //         };
-        
+
 //         match payload {
 //             Payload::CustomSection(reader) if reader.name() == "name" => {
 //                 let binary_reader = BinaryReader::new(reader.data(), reader.data_offset());
@@ -327,7 +322,7 @@ fn gather_items(mut bytes: &[u8]) -> anyhow::Result<Vec<Item>> {
 //             _ => {}
 //         }
 //     }
-    
+
 //     Ok(function_names)
 // }
 

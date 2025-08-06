@@ -10,6 +10,8 @@
     "transpile": "jco transpile --no-nodejs-compat ./component/target/wasm32-wasip1/release/component.wasm --out-dir component-built",
     "typecheck": "tsc --jsx react",
     "watch": "nodemon --watch 'pages/**/*' --watch 'src/**/*' --watch 'component/**/*' --ext 'html,css,ts,tsx,rs' --exec 'npm run build'"
+    ,
+    "format": "prettier --write 'src/**/*.{ts,tsx}' 'pages/**/*.{html,css}' && cargo fmt --manifest-path component/Cargo.toml"
   },
   "dependencies": {
     "@bytecodealliance/jco": "^1.2.4",
@@ -23,6 +25,7 @@
     "@types/react": "^19.1.9",
     "@types/react-dom": "^19.1.7",
     "esbuild": "0.25.5",
-    "nodemon": "3.1.10"
+    "nodemon": "3.1.10",
+    "prettier": "3.6.2"
   }
 }
