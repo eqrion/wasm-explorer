@@ -72,7 +72,8 @@ pub mod exports {
                 #[derive(Clone)]
                 pub struct Item {
                     pub range: Range,
-                    pub name: _rt::String,
+                    pub raw_name: _rt::String,
+                    pub display_name: _rt::String,
                 }
                 impl ::core::fmt::Debug for Item {
                     fn fmt(
@@ -81,7 +82,24 @@ pub mod exports {
                     ) -> ::core::fmt::Result {
                         f.debug_struct("Item")
                             .field("range", &self.range)
-                            .field("name", &self.name)
+                            .field("raw-name", &self.raw_name)
+                            .field("display-name", &self.display_name)
+                            .finish()
+                    }
+                }
+                #[derive(Clone)]
+                pub struct ValidateError {
+                    pub message: _rt::String,
+                    pub offset: u32,
+                }
+                impl ::core::fmt::Debug for ValidateError {
+                    fn fmt(
+                        &self,
+                        f: &mut ::core::fmt::Formatter<'_>,
+                    ) -> ::core::fmt::Result {
+                        f.debug_struct("ValidateError")
+                            .field("message", &self.message)
+                            .field("offset", &self.offset)
                             .finish()
                     }
                 }
@@ -218,6 +236,59 @@ pub mod exports {
                         T::new(_rt::Vec::from_raw_parts(arg0.cast(), len0, len0)),
                     );
                     (result1).take_handle() as i32
+                }
+                #[doc(hidden)]
+                #[allow(non_snake_case)]
+                pub unsafe fn _export_method_module_validate_cabi<T: GuestModule>(
+                    arg0: *mut u8,
+                ) -> *mut u8 {
+                    #[cfg(target_arch = "wasm32")] _rt::run_ctors_once();
+                    let result0 = T::validate(
+                        unsafe { ModuleBorrow::lift(arg0 as u32 as usize) }.get(),
+                    );
+                    let ptr1 = (&raw mut _RET_AREA.0).cast::<u8>();
+                    match result0 {
+                        Some(e) => {
+                            *ptr1.add(0).cast::<u8>() = (1i32) as u8;
+                            let ValidateError { message: message2, offset: offset2 } = e;
+                            let vec3 = (message2.into_bytes()).into_boxed_slice();
+                            let ptr3 = vec3.as_ptr().cast::<u8>();
+                            let len3 = vec3.len();
+                            ::core::mem::forget(vec3);
+                            *ptr1
+                                .add(2 * ::core::mem::size_of::<*const u8>())
+                                .cast::<usize>() = len3;
+                            *ptr1
+                                .add(::core::mem::size_of::<*const u8>())
+                                .cast::<*mut u8>() = ptr3.cast_mut();
+                            *ptr1
+                                .add(3 * ::core::mem::size_of::<*const u8>())
+                                .cast::<i32>() = _rt::as_i32(offset2);
+                        }
+                        None => {
+                            *ptr1.add(0).cast::<u8>() = (0i32) as u8;
+                        }
+                    };
+                    ptr1
+                }
+                #[doc(hidden)]
+                #[allow(non_snake_case)]
+                pub unsafe fn __post_return_method_module_validate<T: GuestModule>(
+                    arg0: *mut u8,
+                ) {
+                    let l0 = i32::from(*arg0.add(0).cast::<u8>());
+                    match l0 {
+                        0 => {}
+                        _ => {
+                            let l1 = *arg0
+                                .add(::core::mem::size_of::<*const u8>())
+                                .cast::<*mut u8>();
+                            let l2 = *arg0
+                                .add(2 * ::core::mem::size_of::<*const u8>())
+                                .cast::<usize>();
+                            _rt::cabi_dealloc(l1, l2, 1);
+                        }
+                    }
                 }
                 #[doc(hidden)]
                 #[allow(non_snake_case)]
@@ -462,30 +533,34 @@ pub mod exports {
                         unsafe { ModuleBorrow::lift(arg0 as u32 as usize) }.get(),
                     );
                     let ptr1 = (&raw mut _RET_AREA.0).cast::<u8>();
-                    let vec5 = result0;
-                    let len5 = vec5.len();
-                    let layout5 = _rt::alloc::Layout::from_size_align_unchecked(
-                        vec5.len() * (8 + 2 * ::core::mem::size_of::<*const u8>()),
+                    let vec6 = result0;
+                    let len6 = vec6.len();
+                    let layout6 = _rt::alloc::Layout::from_size_align_unchecked(
+                        vec6.len() * (8 + 4 * ::core::mem::size_of::<*const u8>()),
                         ::core::mem::size_of::<*const u8>(),
                     );
-                    let result5 = if layout5.size() != 0 {
-                        let ptr = _rt::alloc::alloc(layout5).cast::<u8>();
+                    let result6 = if layout6.size() != 0 {
+                        let ptr = _rt::alloc::alloc(layout6).cast::<u8>();
                         if ptr.is_null() {
-                            _rt::alloc::handle_alloc_error(layout5);
+                            _rt::alloc::handle_alloc_error(layout6);
                         }
                         ptr
                     } else {
                         ::core::ptr::null_mut()
                     };
-                    for (i, e) in vec5.into_iter().enumerate() {
-                        let base = result5
-                            .add(i * (8 + 2 * ::core::mem::size_of::<*const u8>()));
+                    for (i, e) in vec6.into_iter().enumerate() {
+                        let base = result6
+                            .add(i * (8 + 4 * ::core::mem::size_of::<*const u8>()));
                         {
-                            let Item { range: range2, name: name2 } = e;
+                            let Item {
+                                range: range2,
+                                raw_name: raw_name2,
+                                display_name: display_name2,
+                            } = e;
                             let Range { start: start3, end: end3 } = range2;
                             *base.add(0).cast::<i32>() = _rt::as_i32(start3);
                             *base.add(4).cast::<i32>() = _rt::as_i32(end3);
-                            let vec4 = (name2.into_bytes()).into_boxed_slice();
+                            let vec4 = (raw_name2.into_bytes()).into_boxed_slice();
                             let ptr4 = vec4.as_ptr().cast::<u8>();
                             let len4 = vec4.len();
                             ::core::mem::forget(vec4);
@@ -493,10 +568,20 @@ pub mod exports {
                                 .add(8 + 1 * ::core::mem::size_of::<*const u8>())
                                 .cast::<usize>() = len4;
                             *base.add(8).cast::<*mut u8>() = ptr4.cast_mut();
+                            let vec5 = (display_name2.into_bytes()).into_boxed_slice();
+                            let ptr5 = vec5.as_ptr().cast::<u8>();
+                            let len5 = vec5.len();
+                            ::core::mem::forget(vec5);
+                            *base
+                                .add(8 + 3 * ::core::mem::size_of::<*const u8>())
+                                .cast::<usize>() = len5;
+                            *base
+                                .add(8 + 2 * ::core::mem::size_of::<*const u8>())
+                                .cast::<*mut u8>() = ptr5.cast_mut();
                         }
                     }
-                    *ptr1.add(::core::mem::size_of::<*const u8>()).cast::<usize>() = len5;
-                    *ptr1.add(0).cast::<*mut u8>() = result5;
+                    *ptr1.add(::core::mem::size_of::<*const u8>()).cast::<usize>() = len6;
+                    *ptr1.add(0).cast::<*mut u8>() = result6;
                     ptr1
                 }
                 #[doc(hidden)]
@@ -508,22 +593,29 @@ pub mod exports {
                     let l1 = *arg0
                         .add(::core::mem::size_of::<*const u8>())
                         .cast::<usize>();
-                    let base4 = l0;
-                    let len4 = l1;
-                    for i in 0..len4 {
-                        let base = base4
-                            .add(i * (8 + 2 * ::core::mem::size_of::<*const u8>()));
+                    let base6 = l0;
+                    let len6 = l1;
+                    for i in 0..len6 {
+                        let base = base6
+                            .add(i * (8 + 4 * ::core::mem::size_of::<*const u8>()));
                         {
                             let l2 = *base.add(8).cast::<*mut u8>();
                             let l3 = *base
                                 .add(8 + 1 * ::core::mem::size_of::<*const u8>())
                                 .cast::<usize>();
                             _rt::cabi_dealloc(l2, l3, 1);
+                            let l4 = *base
+                                .add(8 + 2 * ::core::mem::size_of::<*const u8>())
+                                .cast::<*mut u8>();
+                            let l5 = *base
+                                .add(8 + 3 * ::core::mem::size_of::<*const u8>())
+                                .cast::<usize>();
+                            _rt::cabi_dealloc(l4, l5, 1);
                         }
                     }
                     _rt::cabi_dealloc(
-                        base4,
-                        len4 * (8 + 2 * ::core::mem::size_of::<*const u8>()),
+                        base6,
+                        len6 * (8 + 4 * ::core::mem::size_of::<*const u8>()),
                         ::core::mem::size_of::<*const u8>(),
                     );
                 }
@@ -572,6 +664,7 @@ pub mod exports {
                         }
                     }
                     fn new(init: _rt::Vec<u8>) -> Self;
+                    fn validate(&self) -> Option<ValidateError>;
                     fn print_rich(
                         &self,
                         range: Range,
@@ -591,11 +684,22 @@ pub mod exports {
                         { unsafe { $($path_to_types)*::
                         _export_constructor_module_cabi::<<$ty as $($path_to_types)*::
                         Guest >::Module > (arg0, arg1) } } #[unsafe (export_name =
-                        "local:module/module#[method]module.print-rich")] unsafe extern
-                        "C" fn export_method_module_print_rich(arg0 : * mut u8, arg1 :
-                        i32, arg2 : i32,) -> * mut u8 { unsafe { $($path_to_types)*::
-                        _export_method_module_print_rich_cabi::<<$ty as
-                        $($path_to_types)*:: Guest >::Module > (arg0, arg1, arg2) } }
+                        "local:module/module#[method]module.validate")] unsafe extern "C"
+                        fn export_method_module_validate(arg0 : * mut u8,) -> * mut u8 {
+                        unsafe { $($path_to_types)*::
+                        _export_method_module_validate_cabi::<<$ty as
+                        $($path_to_types)*:: Guest >::Module > (arg0) } } #[unsafe
+                        (export_name =
+                        "cabi_post_local:module/module#[method]module.validate")] unsafe
+                        extern "C" fn _post_return_method_module_validate(arg0 : * mut
+                        u8,) { unsafe { $($path_to_types)*::
+                        __post_return_method_module_validate::<<$ty as
+                        $($path_to_types)*:: Guest >::Module > (arg0) } } #[unsafe
+                        (export_name = "local:module/module#[method]module.print-rich")]
+                        unsafe extern "C" fn export_method_module_print_rich(arg0 : * mut
+                        u8, arg1 : i32, arg2 : i32,) -> * mut u8 { unsafe {
+                        $($path_to_types)*:: _export_method_module_print_rich_cabi::<<$ty
+                        as $($path_to_types)*:: Guest >::Module > (arg0, arg1, arg2) } }
                         #[unsafe (export_name =
                         "cabi_post_local:module/module#[method]module.print-rich")]
                         unsafe extern "C" fn _post_return_method_module_print_rich(arg0 :
@@ -637,10 +741,10 @@ pub mod exports {
                 struct _RetArea(
                     [::core::mem::MaybeUninit<
                         u8,
-                    >; 3 * ::core::mem::size_of::<*const u8>()],
+                    >; 4 * ::core::mem::size_of::<*const u8>()],
                 );
                 static mut _RET_AREA: _RetArea = _RetArea(
-                    [::core::mem::MaybeUninit::uninit(); 3
+                    [::core::mem::MaybeUninit::uninit(); 4
                         * ::core::mem::size_of::<*const u8>()],
                 );
             }
@@ -790,7 +894,6 @@ mod _rt {
             self as i32
         }
     }
-    pub use alloc_crate::alloc;
     pub unsafe fn cabi_dealloc(ptr: *mut u8, size: usize, align: usize) {
         if size == 0 {
             return;
@@ -798,6 +901,7 @@ mod _rt {
         let layout = alloc::Layout::from_size_align_unchecked(size, align);
         alloc::dealloc(ptr, layout);
     }
+    pub use alloc_crate::alloc;
     extern crate alloc as alloc_crate;
 }
 /// Generates `#[unsafe(no_mangle)]` functions to export the specified type as
@@ -836,17 +940,19 @@ pub(crate) use __export_wasm_tools_impl as export;
 )]
 #[doc(hidden)]
 #[allow(clippy::octal_escapes)]
-pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 538] = *b"\
-\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\x99\x03\x01A\x02\x01\
-A\x02\x01B\x16\x01r\x02\x05starty\x03endy\x04\0\x05range\x03\0\0\x01q\x08\x03str\
+pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 638] = *b"\
+\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\xfd\x03\x01A\x02\x01\
+A\x02\x01B\x1b\x01r\x02\x05starty\x03endy\x04\0\x05range\x03\0\0\x01q\x08\x03str\
 \x01s\0\x08new-line\x01y\0\x04name\0\0\x07literal\0\0\x07keyword\0\0\x04type\0\0\
-\x07comment\0\0\x05reset\0\0\x04\0\x0aprint-part\x03\0\x02\x01r\x02\x05range\x01\
-\x04names\x04\0\x04item\x03\0\x04\x04\0\x06module\x03\x01\x01p}\x01i\x06\x01@\x01\
-\x04init\x07\0\x08\x04\0\x13[constructor]module\x01\x09\x01h\x06\x01p\x03\x01j\x01\
-\x0b\x01s\x01@\x02\x04self\x0a\x05range\x01\0\x0c\x04\0\x19[method]module.print-\
-rich\x01\x0d\x01j\x01s\x01s\x01@\x02\x04self\x0a\x05range\x01\0\x0e\x04\0\x1a[me\
-thod]module.print-plain\x01\x0f\x01p\x05\x01@\x01\x04self\x0a\0\x10\x04\0\x14[me\
-thod]module.items\x01\x11\x04\0\x13local:module/module\x05\0\x04\0\x17local:modu\
+\x07comment\0\0\x05reset\0\0\x04\0\x0aprint-part\x03\0\x02\x01r\x03\x05range\x01\
+\x08raw-names\x0cdisplay-names\x04\0\x04item\x03\0\x04\x01r\x02\x07messages\x06o\
+ffsety\x04\0\x0evalidate-error\x03\0\x06\x04\0\x06module\x03\x01\x01p}\x01i\x08\x01\
+@\x01\x04init\x09\0\x0a\x04\0\x13[constructor]module\x01\x0b\x01h\x08\x01k\x07\x01\
+@\x01\x04self\x0c\0\x0d\x04\0\x17[method]module.validate\x01\x0e\x01p\x03\x01j\x01\
+\x0f\x01s\x01@\x02\x04self\x0c\x05range\x01\0\x10\x04\0\x19[method]module.print-\
+rich\x01\x11\x01j\x01s\x01s\x01@\x02\x04self\x0c\x05range\x01\0\x12\x04\0\x1a[me\
+thod]module.print-plain\x01\x13\x01p\x05\x01@\x01\x04self\x0c\0\x14\x04\0\x14[me\
+thod]module.items\x01\x15\x04\0\x13local:module/module\x05\0\x04\0\x17local:modu\
 le/wasm-tools\x04\0\x0b\x10\x01\0\x0awasm-tools\x03\0\0\0G\x09producers\x01\x0cp\
 rocessed-by\x02\x0dwit-component\x070.227.1\x10wit-bindgen-rust\x060.41.0";
 #[inline(never)]

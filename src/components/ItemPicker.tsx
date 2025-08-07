@@ -13,6 +13,7 @@ export const ItemPicker: React.FC<ItemPickerProps> = ({
   items,
   onSelect,
   onClose,
+  title,
 }) => {
   const [highlightedIndex, setHighlightedIndex] = useState(0);
   const highlightedItemRef = useRef<HTMLLIElement>(null);
@@ -77,6 +78,11 @@ export const ItemPicker: React.FC<ItemPickerProps> = ({
 
   return (
     <Modal onClose={onClose}>
+      {title && (
+        <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
+          <h3 className="text-lg font-medium text-gray-900">{title}</h3>
+        </div>
+      )}
       <div className="max-h-96 overflow-y-auto">
         {items.length === 0 ? (
           <div className="py-5 px-4 text-center text-gray-600">
@@ -96,7 +102,7 @@ export const ItemPicker: React.FC<ItemPickerProps> = ({
                 onClick={() => handleItemClick(item, index)}
                 onMouseEnter={() => setHighlightedIndex(index)}
               >
-                {item.name}
+                {item.displayName}
               </li>
             ))}
           </ul>

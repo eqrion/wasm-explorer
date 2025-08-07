@@ -3,7 +3,6 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { Module } from "./module.js";
 import { fuzzy } from "./utilities.js";
 import type {
-  Range,
   PrintPart,
   Item,
 } from "../component-built/interfaces/local-module-module.d.ts";
@@ -13,7 +12,6 @@ import {
 } from "./components/ResizableColumns.js";
 import { TreeView } from "./components/TreeView.js";
 import { ItemPicker } from "./components/ItemPicker.js";
-import { createIncrementalCompilerHost } from "typescript";
 
 const MaxBytesForRich = 100 * 1024;
 const initialModule = Module.load(
@@ -93,6 +91,7 @@ function AppInner() {
   const [offset, setOffset] = useState<number | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [showItemPicker, setShowItemPicker] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Item[]>([]);
   let loadedModule = React.use(module);
   let items = loadedModule.items;
@@ -110,7 +109,7 @@ function AppInner() {
       items[0].range.end - items[0].range.start <= MaxBytesForRich
     ) {
       console.log("setting");
-      url.searchParams.set("item", items[0].name);
+      url.searchParams.set("item", items[0].displayName);
     } else {
       url.searchParams.delete("item");
     }
@@ -124,7 +123,10 @@ function AppInner() {
       const itemParam = urlParams.get("item");
 
       if (itemParam !== null) {
-        const foundItem = items.find((item) => item.name === itemParam);
+        const foundItem = items.find(
+          (item) =>
+            item.displayName === itemParam || item.rawName === itemParam,
+        );
         setItem(foundItem || null);
       } else {
         setItem(null);
@@ -147,8 +149,8 @@ function AppInner() {
 
   useEffect(() => {
     const url = new URL(window.location.href);
-    if (item !== null && item.name) {
-      url.searchParams.set("item", item.name);
+    if (item !== null) {
+      url.searchParams.set("item", item.displayName);
     } else {
       url.searchParams.delete("item");
     }
@@ -272,7 +274,9 @@ function AppInner() {
 
   const searchXRef = (xref: string) => {
     // Do an exact match search
-    let exactMatchIndex = items.findIndex((x) => x.name === xref);
+    let exactMatchIndex = items.findIndex(
+      (x) => x.rawName === xref || x.displayName === xref,
+    );
     if (exactMatchIndex !== -1) {
       setItem(items[exactMatchIndex]);
       return;
@@ -284,6 +288,7 @@ function AppInner() {
       setItem(foundItems[0]);
     } else if (foundItems.length > 1) {
       setSearchResults(foundItems);
+      setSearchQuery(xref);
       setShowItemPicker(true);
     }
   };
@@ -344,6 +349,7 @@ function AppInner() {
       {showItemPicker && (
         <ItemPicker
           items={searchResults}
+          title={`Searching for "${searchQuery}"`}
           onSelect={(selectedItem) => {
             setItem(selectedItem);
             setShowItemPicker(false);
@@ -571,9 +577,11 @@ export function WatViewer({
       e.target.classList.contains("print-name")
     ) {
       let xref = e.target.innerText;
-      let xrefIsIndex = !isNaN(parseInt(xref));
 
+      let xrefIsIndex = !isNaN(parseInt(xref));
       let textNode = e.target.previousSibling;
+
+      // Apply heuristics to guess what an integer 'name' refers to
       if (xrefIsIndex && textNode && textNode.nodeType === Node.TEXT_NODE) {
         let text = (textNode.textContent ?? "").trimEnd();
         if (text.endsWith("call") || text.endsWith("func")) {
@@ -581,6 +589,8 @@ export function WatViewer({
         } else if (text.endsWith("type")) {
           xref = "type " + xref;
         }
+      } else if (xref.startsWith("$")) {
+        xref = xref.substring(1);
       }
 
       searchXRef(xref);
@@ -598,12 +608,12 @@ export function WatViewer({
     <div className="flex-1 overflow-auto bg-white flex min-h-full">
       <pre
         ref={offsets}
-        className="wat font-mono text-xs leading-relaxed text-gray-800 whitespace-pre-wrap break-words"
+        className="wat font-mono text-xs leading-relaxed text-gray-800 whitespace-pre break-words"
         onClick={onClickOffsets}
       ></pre>
       <pre
         ref={contents}
-        className="wat flex-1 font-mono text-xs leading-relaxed text-gray-800 whitespace-pre-wrap break-words"
+        className="wat flex-1 font-mono text-xs leading-relaxed text-gray-800 whitespace-pre break-words"
         onClick={onClickContents}
       ></pre>
     </div>

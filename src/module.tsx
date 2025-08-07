@@ -1,5 +1,4 @@
 import type {
-  Module as ModuleType,
   Range,
   PrintPart,
   Item,
@@ -71,25 +70,25 @@ export class Module {
   }
 
   static async load(source: Uint8Array): Promise<Module> {
-    let response = await sendMessage({
+    let constructResponse = await sendMessage({
       kind: MessageToWorkerKind.Construct,
       id: nextMessageId++,
       source,
     });
-    if (response.kind !== MessageFromWorkerKind.Construct) {
+    if (constructResponse.kind !== MessageFromWorkerKind.Construct) {
       throw new Error("unexpected response kind");
     }
 
     let itemsResponse = await sendMessage({
       kind: MessageToWorkerKind.Items,
       id: nextMessageId++,
-      moduleId: response.moduleId,
+      moduleId: constructResponse.moduleId,
     });
     if (itemsResponse.kind !== MessageFromWorkerKind.Items) {
       throw new Error("unexpected response kind");
     }
 
-    return new Module(response.moduleId, itemsResponse.result);
+    return new Module(constructResponse.moduleId, itemsResponse.result);
   }
 
   async printRich(range: Range): Promise<PrintPart[]> {

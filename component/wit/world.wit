@@ -19,14 +19,23 @@ interface module {
 
     record item {
         range: range,
-        name: string,
+        raw-name: string,
+        display-name: string,
+    }
+
+    record validate-error {
+        message: string,
+        offset: u32,
     }
 
     resource module {
         constructor(init: list<u8>);
 
+        validate: func() -> option<validate-error>;
+
         print-rich: func(range: range) -> result<list<print-part>, string>;
         print-plain: func(range: range) -> result<string, string>;
+
         items: func() -> list<item>;
     }
 }

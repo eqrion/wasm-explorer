@@ -11,7 +11,7 @@ export function debounce(f: (...args: unknown[]) => void, ms: number) {
   };
 }
 
-export function fuzzy<T extends { name: string }>(
+export function fuzzy<T extends { displayName: string }>(
   items: T[],
   search: string,
 ): T[] {
@@ -21,7 +21,7 @@ export function fuzzy<T extends { name: string }>(
 
   const scored = items
     .map((item) => {
-      const nameLower = item.name.toLowerCase();
+      const nameLower = item.displayName.toLowerCase();
       let score = 0;
       let searchIndex = 0;
       let consecutiveBonus = 0;

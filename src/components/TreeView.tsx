@@ -6,7 +6,8 @@ import type {
 } from "../../component-built/interfaces/local-module-module.d.ts";
 
 interface ItemTree {
-  name: string;
+  rawName: string;
+  displayName: string;
   range: Range;
   index: number;
   children: ItemTree[];
@@ -17,14 +18,12 @@ function calculateSimilarityScore(
   itemName: string,
   itemRange?: Range,
 ): number {
-  if (!itemName) return 0;
-
   const queryLower = query.toLowerCase();
   const nameLower = itemName.toLowerCase();
 
   // Check if query is a hexadecimal number
   if (queryLower.startsWith("0x") && itemRange) {
-    const hexValue = parseInt(queryLower.replace("0x", ""), 16);
+    const hexValue = parseInt(queryLower.replace(/^0x/, ""), 16);
     if (!isNaN(hexValue)) {
       // Check if the hex value is within this item's range
       if (hexValue >= itemRange.start && hexValue <= itemRange.end) {
@@ -56,7 +55,8 @@ function calculateSimilarityScore(
 function itemsToTree(items: Item[]): ItemTree {
   if (items.length === 0) {
     return {
-      name: "root",
+      rawName: "root",
+      displayName: "root",
       range: { start: 0, end: 0 },
       index: -1,
       children: [],
@@ -64,7 +64,8 @@ function itemsToTree(items: Item[]): ItemTree {
   }
 
   const root: ItemTree = {
-    name: "root",
+    rawName: "root",
+    displayName: "root",
     range: { start: 0, end: items[items.length - 1]?.range.end || 0 },
     index: -1,
     children: [],
@@ -75,7 +76,8 @@ function itemsToTree(items: Item[]): ItemTree {
 
   items.forEach((item, index) => {
     const node: ItemTree = {
-      name: item.name || `item_${index}`,
+      rawName: item.rawName,
+      displayName: item.displayName,
       range: item.range,
       index,
       children: [],
@@ -141,14 +143,26 @@ export function TreeView(props: TreeViewProps) {
     const threshold = 0.3; // Minimum similarity threshold
 
     props.items.forEach((item, index) => {
-      const score = calculateSimilarityScore(
+      const score1 = calculateSimilarityScore(
         query,
-        item.name || "",
+        item.displayName,
         item.range,
       );
-      if (score > bestScore && score >= threshold) {
-        bestScore = score;
+      if (score1 > bestScore && score1 >= threshold) {
+        bestScore = score1;
         bestMatch = index;
+      }
+
+      if (item.displayName !== item.rawName) {
+        const score2 = calculateSimilarityScore(
+          query,
+          item.rawName,
+          item.range,
+        );
+        if (score2 > bestScore && score2 >= threshold) {
+          bestScore = score2;
+          bestMatch = index;
+        }
       }
     });
 
@@ -160,7 +174,7 @@ export function TreeView(props: TreeViewProps) {
     if (props.items.length > 0) {
       const expandedSet = new Set(["root"]);
       if (itemTree.children.length > 0) {
-        expandedSet.add(itemTree.children[0].name);
+        expandedSet.add(itemTree.children[0].rawName);
       }
       setExpandedNodes(expandedSet);
     }
@@ -178,7 +192,9 @@ export function TreeView(props: TreeViewProps) {
 
     for (const child of node.children) {
       const childPath =
-        currentPath === "root" ? child.name : `${currentPath}/${child.name}`;
+        currentPath === "root"
+          ? child.rawName
+          : `${currentPath}/${child.rawName}`;
       const result = findNodePath(child, targetIndex, childPath);
       if (result) return result;
     }
@@ -220,10 +236,11 @@ export function TreeView(props: TreeViewProps) {
   // Sync selectedIndex with props.selectedItem and handle expansion/scrolling
   useEffect(() => {
     if (props.selectedItem !== null && props.selectedItem !== selectedIndex) {
+      setSearchText("");
       setSelectedIndex(props.selectedItem);
       expandPathToSelected(props.selectedItem);
       // Delay scrolling to allow expansion to complete
-      setTimeout(scrollToSelected, 100);
+      setTimeout(scrollToSelected, 500);
     }
   }, [props.selectedItem, selectedIndex, itemTree]);
 
@@ -262,36 +279,31 @@ export function TreeView(props: TreeViewProps) {
     }
   };
 
-  const shouldShowNode = (node: ItemTree, path: string): boolean => {
-    if (!searchText.trim()) return true;
+  const shouldShowNode = (node: ItemTree): boolean => {
+    if (!searchText.trim()) {
+      return true;
+    }
 
     const query = searchText.toLowerCase();
-    const name = node.name.toLowerCase();
+    const name1 = node.rawName.toLowerCase();
+    const name2 = node.displayName.toLowerCase();
 
-    // Check if search text is a hexadecimal number with 0x prefix
-    if (query.startsWith("0x")) {
-      const hexValue = parseInt(query.replace("0x", ""), 16);
-      if (!isNaN(hexValue)) {
-        // Check if the hex value is within this node's range
-        if (hexValue >= node.range.start && hexValue <= node.range.end) {
-          return true;
-        }
+    // Check if search text is a hexadecimal number with or without 0x prefix
+    const hexValue = parseInt(query.replace(/^0x/, ""), 16);
+    if (!isNaN(hexValue)) {
+      // Check if the hex value is within this node's range
+      if (hexValue >= node.range.start && hexValue <= node.range.end) {
+        return true;
       }
     }
 
     // Show if this node matches
-    if (name.includes(query)) return true;
+    if (name1.includes(query) || name2.includes(query)) {
+      return true;
+    }
 
     // Show if any descendant matches
-    const hasMatchingDescendant = (n: ItemTree): boolean => {
-      return n.children.some(
-        (child) =>
-          child.name.toLowerCase().includes(query) ||
-          hasMatchingDescendant(child),
-      );
-    };
-
-    return hasMatchingDescendant(node);
+    return node.children.some((child) => shouldShowNode(child));
   };
 
   const renderTreeNode = (
@@ -304,25 +316,19 @@ export function TreeView(props: TreeViewProps) {
     const isClosestMatch =
       closestMatchIndex >= 0 && node.index === closestMatchIndex;
     const hasChildren = node.children.length > 0;
-    const shouldShow = shouldShowNode(node, path);
+    const shouldShow = shouldShowNode(node);
 
     if (!shouldShow) return null;
 
     // Auto-expand nodes when searching to show matches
     const shouldAutoExpand =
-      searchText.trim() &&
-      node.children.some((child) =>
-        shouldShowNode(
-          child,
-          path === "root" ? child.name : `${path}/${child.name}`,
-        ),
-      );
+      searchText.trim() && node.children.some((child) => shouldShowNode(child));
 
     const effectivelyExpanded = isExpanded || shouldAutoExpand;
 
     return (
       <div key={path} className="select-none">
-        {node.name !== "root" && (
+        {node.rawName !== "root" && (
           <div
             ref={isSelected ? selectedNodeRef : null}
             className={`flex items-center py-1 px-2 cursor-pointer hover:bg-gray-100 ${
@@ -347,7 +353,7 @@ export function TreeView(props: TreeViewProps) {
               </button>
             )}
             {!hasChildren && <div className="w-5" />}
-            <span className="text-sm truncate flex-1">{node.name}</span>
+            <span className="text-sm truncate flex-1">{node.displayName}</span>
             {node.index >= 0 && (
               <span className="text-xs text-gray-500 ml-2">
                 [0x{node.range.start.toString(16)}-0x
@@ -361,7 +367,7 @@ export function TreeView(props: TreeViewProps) {
           <div>
             {node.children.map((child) => {
               const childPath =
-                path === "root" ? child.name : `${path}/${child.name}`;
+                path === "root" ? child.rawName : `${path}/${child.rawName}`;
               return renderTreeNode(child, childPath, depth + 1);
             })}
           </div>
