@@ -12,6 +12,7 @@ import {
 } from "./components/ResizableColumns.js";
 import { TreeView } from "./components/TreeView.js";
 import { ItemPicker } from "./components/ItemPicker.js";
+import { Modal } from "./components/Modal.js";
 
 const MaxBytesForRich = 100 * 1024;
 const initialModule = Module.load(
@@ -91,6 +92,7 @@ function AppInner() {
   const [offset, setOffset] = useState<number | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [showItemPicker, setShowItemPicker] = useState(false);
+  const [showHelpModal, setShowHelpModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Item[]>([]);
   let loadedModule = React.use(module);
@@ -382,6 +384,7 @@ function AppInner() {
       <Toolbar
         onFileLoad={handleFileLoad}
         onDownload={handleDownload}
+        onShowHelp={() => setShowHelpModal(true)}
         module={loadedModule}
       />
 
@@ -399,6 +402,16 @@ function AppInner() {
           }}
           onClose={() => setShowItemPicker(false)}
         />
+      )}
+
+      {showHelpModal && (
+        <Modal
+          // title="Help"
+          onClose={() => setShowHelpModal(false)}
+        >
+          {/* Modal content will go here */}
+          <></>
+        </Modal>
       )}
 
       {isDragOver && (
@@ -423,6 +436,7 @@ function AppInner() {
 function Toolbar(props: {
   onFileLoad: (content: ArrayBuffer) => void;
   onDownload: () => void;
+  onShowHelp: () => void;
   module: Module;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -461,6 +475,26 @@ function Toolbar(props: {
         className="px-4 py-2 bg-blue-600 text-white border-none rounded cursor-pointer text-sm font-medium hover:bg-blue-700 transition-colors"
       >
         Open
+      </button>
+      <button
+        onClick={() => props.onShowHelp()}
+        className="py-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+        title="Help"
+      >
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <circle cx="12" cy="12" r="10" />
+          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+          <circle cx="12" cy="17" r="0.5" />
+        </svg>
       </button>
       <input
         ref={fileInputRef}
