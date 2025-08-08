@@ -13,7 +13,7 @@ interface ItemTree {
   children: ItemTree[];
 }
 
-function calculateSimilarityScore(
+function fuzzyMatchTreeView(
   query: string,
   itemName: string,
   itemRange?: Range,
@@ -111,7 +111,7 @@ function itemsToTree(items: Item[]): ItemTree {
 interface TreeViewProps {
   items: Item[];
   selectedItem: number | null;
-  onItemSelected: (index: number) => void;
+  onItemSelected: (index: number, offset?: number) => void;
 }
 
 // A tree view of items. Item nodes can be expanded, minimized and selected.
@@ -128,14 +128,38 @@ export function TreeView(props: TreeViewProps) {
   );
   const [selectedIndex, setSelectedIndex] = useState<number>(-1);
   const [searchText, setSearchText] = useState("");
+  const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
   const selectedNodeRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const SIZE_LIMIT_KB = 512;
   const SIZE_LIMIT_BYTES = SIZE_LIMIT_KB * 1024;
 
+  // Focus search box when 'f' key is pressed
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (
+        e.key === "f" &&
+        !e.ctrlKey &&
+        !e.metaKey &&
+        e.target === document.body
+      ) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+
+    document.addEventListener("keydown", handleGlobalKeyDown);
+    return () => document.removeEventListener("keydown", handleGlobalKeyDown);
+  }, []);
+
   // Find closest match for search text using similarity scoring
-  const closestMatchIndex = useMemo(() => {
-    if (!searchText.trim()) return -1;
+  useEffect(() => {
+    if (!searchText.trim()) {
+      setHighlightedIndex(-1);
+      return;
+    }
+
     const query = searchText.toLowerCase();
 
     let bestMatch = -1;
@@ -143,22 +167,14 @@ export function TreeView(props: TreeViewProps) {
     const threshold = 0.3; // Minimum similarity threshold
 
     props.items.forEach((item, index) => {
-      const score1 = calculateSimilarityScore(
-        query,
-        item.displayName,
-        item.range,
-      );
+      const score1 = fuzzyMatchTreeView(query, item.displayName, item.range);
       if (score1 > bestScore && score1 >= threshold) {
         bestScore = score1;
         bestMatch = index;
       }
 
       if (item.displayName !== item.rawName) {
-        const score2 = calculateSimilarityScore(
-          query,
-          item.rawName,
-          item.range,
-        );
+        const score2 = fuzzyMatchTreeView(query, item.rawName, item.range);
         if (score2 > bestScore && score2 >= threshold) {
           bestScore = score2;
           bestMatch = index;
@@ -166,8 +182,42 @@ export function TreeView(props: TreeViewProps) {
       }
     });
 
-    return bestMatch;
+    setHighlightedIndex(bestMatch);
   }, [searchText, props.items]);
+
+  // Get all visible items in display order for keyboard navigation
+  const getVisibleItems = (): number[] => {
+    const visibleItems: number[] = [];
+
+    const collectVisibleItems = (node: ItemTree) => {
+      if (node.index >= 0 && shouldShowNode(node)) {
+        visibleItems.push(node.index);
+      }
+
+      const isExpanded = expandedNodes.has(
+        findNodePath(itemTree, node.index) || "",
+      );
+      const shouldAutoExpand =
+        searchText.trim() &&
+        node.children.some((child) => shouldShowNode(child));
+
+      if (isExpanded || shouldAutoExpand) {
+        node.children.forEach((child) => {
+          if (shouldShowNode(child)) {
+            collectVisibleItems(child);
+          }
+        });
+      }
+    };
+
+    itemTree.children.forEach((child) => {
+      if (shouldShowNode(child)) {
+        collectVisibleItems(child);
+      }
+    });
+
+    return visibleItems;
+  };
 
   // Expand root and first item when the tree changes
   useEffect(() => {
@@ -269,13 +319,55 @@ export function TreeView(props: TreeViewProps) {
     }
 
     setSelectedIndex(index);
-    props.onItemSelected(index);
+    props.onItemSelected(index, offset);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && closestMatchIndex >= 0) {
-      // TODO: pass the hexadecimal offset from the search query along
-      handleItemSelect(closestMatchIndex);
+    if (e.key === "Enter" && highlightedIndex >= 0) {
+      let offset: number | undefined = parseInt(
+        searchText.replace(/^0x/, ""),
+        16,
+      );
+      if (isNaN(offset)) {
+        offset = undefined;
+      }
+      handleItemSelect(highlightedIndex, offset);
+      return;
+    }
+
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      const visibleItems = getVisibleItems();
+
+      if (visibleItems.length === 0) return;
+
+      let newIndex: number;
+
+      if (highlightedIndex === -1) {
+        // No current highlight, select first item
+        newIndex = visibleItems[0];
+      } else {
+        const currentPosition = visibleItems.indexOf(highlightedIndex);
+
+        if (e.key === "ArrowDown") {
+          // Move down, wrap to first if at end
+          newIndex =
+            currentPosition >= 0 && currentPosition < visibleItems.length - 1
+              ? visibleItems[currentPosition + 1]
+              : visibleItems[0];
+        } else {
+          // Move up, wrap to last if at beginning
+          newIndex =
+            currentPosition > 0
+              ? visibleItems[currentPosition - 1]
+              : visibleItems[visibleItems.length - 1];
+        }
+      }
+
+      setHighlightedIndex(newIndex);
+
+      // Expand path to highlighted item to ensure it's visible
+      expandPathToSelected(newIndex);
     }
   };
 
@@ -314,7 +406,7 @@ export function TreeView(props: TreeViewProps) {
     const isExpanded = expandedNodes.has(path);
     const isSelected = selectedIndex === node.index;
     const isClosestMatch =
-      closestMatchIndex >= 0 && node.index === closestMatchIndex;
+      highlightedIndex >= 0 && node.index === highlightedIndex;
     const hasChildren = node.children.length > 0;
     const shouldShow = shouldShowNode(node);
 
@@ -380,8 +472,9 @@ export function TreeView(props: TreeViewProps) {
     <div className="flex flex-col h-full bg-white border-r border-gray-200">
       <div>
         <input
+          ref={searchInputRef}
           type="text"
-          placeholder="Search"
+          placeholder="Filter by name or binary offset"
           value={searchText}
           onChange={(e) => setSearchText(e.target.value)}
           onKeyDown={handleKeyDown}

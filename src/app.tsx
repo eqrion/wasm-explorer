@@ -319,9 +319,14 @@ function AppInner() {
           <TreeView
             items={loadedModule.items}
             selectedItem={selectedItemIndex}
-            onItemSelected={(index) => {
+            onItemSelected={(index, offset) => {
               if (index >= 0 && loadedModule.items[index]) {
                 setItem(loadedModule.items[index]);
+                if (offset !== undefined) {
+                  setOffset(offset);
+                } else {
+                  setOffset(null);
+                }
               }
             }}
           />
@@ -435,7 +440,7 @@ function WasmLogo() {
   );
 }
 
-function renderRichPrint(parts: PrintPart[], selectedOffset: number | null) {
+function renderRichPrint(parts: PrintPart[]) {
   let root = document.createElement("span");
   let offsets = document.createElement("div");
 
@@ -453,9 +458,6 @@ function renderRichPrint(parts: PrintPart[], selectedOffset: number | null) {
         offset.innerText = `0x${part.val.toString(16)}`;
         offset.className = "print-newline";
         offset.setAttribute("data-offset", "" + part.val);
-        if (part.val == selectedOffset) {
-          offset.classList.add("print-newline-selected");
-        }
         offsets.append(offset);
         break;
       }
@@ -533,12 +535,12 @@ export function WatViewer({
     if (!contents.current || !offsets.current || !body) {
       return;
     }
-    let [newContents, newOffsets] = renderRichPrint(body, offset);
+    let [newContents, newOffsets] = renderRichPrint(body);
     contents.current.innerHTML = "";
     contents.current.appendChild(newContents);
     offsets.current.innerHTML = "";
     offsets.current.appendChild(newOffsets);
-  }, [body, offset]);
+  }, [body]);
 
   useEffect(() => {
     if (!offsets.current) {
@@ -549,9 +551,13 @@ export function WatViewer({
       `[data-offset="${offset}"]`,
     );
     if (targetElement) {
+      targetElement.classList.add("print-newline-selected");
       targetElement.scrollIntoView({ behavior: "smooth", block: "center" });
     }
-  }, [offset]);
+    return () => {
+      targetElement?.classList.remove("print-newline-selected");
+    };
+  }, [body, offset]);
 
   let onClickOffsets = (e: React.MouseEvent<HTMLPreElement, MouseEvent>) => {
     if (
