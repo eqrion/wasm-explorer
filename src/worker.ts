@@ -55,6 +55,19 @@ addEventListener("message", ({ data }: { data: MessageToWorker }) => {
         postMessage({ kind: MessageFromWorkerKind.Destroy, id: data.id });
         return;
       }
+      case MessageToWorkerKind.GetSource: {
+        let module = modules[data.moduleId];
+        let source = module.source();
+        postMessage(
+          {
+            kind: MessageFromWorkerKind.GetSource,
+            id: data.id,
+            source,
+          },
+          [source.buffer],
+        );
+        return;
+      }
       case MessageToWorkerKind.PrintRich: {
         let module = modules[data.moduleId];
         let result = module.printRich(data.range);

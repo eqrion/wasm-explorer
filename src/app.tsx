@@ -239,6 +239,26 @@ function AppInner() {
     setModule(mod);
   };
 
+  const handleDownload = async () => {
+    if (!loadedModule) {
+      return;
+    }
+    const source = await loadedModule.getSource();
+    const sourceBuffer = source.buffer;
+    if (!(sourceBuffer instanceof ArrayBuffer)) {
+      throw new Error("Source is not an ArrayBuffer");
+    }
+    const blob = new Blob([sourceBuffer], { type: "application/wasm" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "module.wasm";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   // Drag and drop functionality
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -359,7 +379,11 @@ function AppInner() {
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      <Toolbar onFileLoad={handleFileLoad} module={loadedModule} />
+      <Toolbar
+        onFileLoad={handleFileLoad}
+        onDownload={handleDownload}
+        module={loadedModule}
+      />
 
       <div className="flex-1 overflow-hidden">
         <ResizableColumns panels={panels} />
@@ -398,6 +422,7 @@ function AppInner() {
 
 function Toolbar(props: {
   onFileLoad: (content: ArrayBuffer) => void;
+  onDownload: () => void;
   module: Module;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -425,6 +450,12 @@ function Toolbar(props: {
 
       <div className="flex-1" />
 
+      <button
+        onClick={() => props.onDownload()}
+        className="px-4 py-2 bg-blue-600 text-white border-none rounded cursor-pointer text-sm font-medium hover:bg-blue-700 transition-colors"
+      >
+        Download
+      </button>
       <button
         onClick={() => fileInputRef.current?.click()}
         className="px-4 py-2 bg-blue-600 text-white border-none rounded cursor-pointer text-sm font-medium hover:bg-blue-700 transition-colors"

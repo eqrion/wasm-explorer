@@ -16,6 +16,7 @@ export enum MessageFromWorkerKind {
   Loaded = "loaded",
   Exception = "exception",
   Construct = "construct",
+  GetSource = "getSource",
   Destroy = "destroy",
   PrintRich = "printRich",
   PrintPlain = "printPlain",
@@ -33,6 +34,11 @@ export type MessageFromWorker =
     }
   | { kind: MessageFromWorkerKind.Destroy; id: MessageId }
   | {
+      kind: MessageFromWorkerKind.GetSource;
+      id: MessageId;
+      source: Uint8Array;
+    }
+  | {
       kind: MessageFromWorkerKind.PrintRich;
       id: MessageId;
       result: PrintPart[];
@@ -42,6 +48,7 @@ export type MessageFromWorker =
 export enum MessageToWorkerKind {
   Construct = "construct",
   Destroy = "destroy",
+  GetSource = "getSource",
   PrintRich = "printRich",
   PrintPlain = "printPlain",
 }
@@ -49,6 +56,11 @@ export enum MessageToWorkerKind {
 export type MessageToWorker =
   | { kind: MessageToWorkerKind.Construct; id: MessageId; source: Uint8Array }
   | { kind: MessageToWorkerKind.Destroy; id: MessageId; moduleId: ModuleId }
+  | {
+      kind: MessageToWorkerKind.GetSource;
+      id: MessageId;
+      moduleId: ModuleId;
+    }
   | {
       kind: MessageToWorkerKind.PrintRich;
       id: MessageId;

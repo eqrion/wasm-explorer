@@ -19,10 +19,11 @@ let nextMessageId: MessageId = FirstMessageId;
 
 async function sendMessage(
   message: MessageToWorker,
+  transfers?: Transferable[],
 ): Promise<MessageFromWorker> {
   console.log(`MAIN: sending ${message.id}, ${message.kind}`);
   let wait = waitForResponse(message.id);
-  worker.postMessage(message);
+  worker.postMessage(message, transfers ?? []);
   return await wait;
 }
 
@@ -78,11 +79,14 @@ export class Module {
   }
 
   static async load(source: Uint8Array): Promise<Module> {
-    let constructResponse = await sendMessage({
-      kind: MessageToWorkerKind.Construct,
-      id: nextMessageId++,
-      source,
-    });
+    let constructResponse = await sendMessage(
+      {
+        kind: MessageToWorkerKind.Construct,
+        id: nextMessageId++,
+        source,
+      },
+      [source.buffer],
+    );
     if (constructResponse.kind !== MessageFromWorkerKind.Construct) {
       throw new Error("unexpected response kind");
     }
@@ -92,6 +96,18 @@ export class Module {
       constructResponse.items,
       constructResponse.validateError,
     );
+  }
+
+  async getSource(): Promise<Uint8Array> {
+    let response = await sendMessage({
+      kind: MessageToWorkerKind.GetSource,
+      id: nextMessageId++,
+      moduleId: this.id,
+    });
+    if (response.kind !== MessageFromWorkerKind.GetSource) {
+      throw new Error("unexpected response kind");
+    }
+    return response.source;
   }
 
   getCacheKey(range: Range): string {

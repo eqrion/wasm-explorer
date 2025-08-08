@@ -292,6 +292,37 @@ pub mod exports {
                 }
                 #[doc(hidden)]
                 #[allow(non_snake_case)]
+                pub unsafe fn _export_method_module_source_cabi<T: GuestModule>(
+                    arg0: *mut u8,
+                ) -> *mut u8 {
+                    #[cfg(target_arch = "wasm32")] _rt::run_ctors_once();
+                    let result0 = T::source(
+                        unsafe { ModuleBorrow::lift(arg0 as u32 as usize) }.get(),
+                    );
+                    let ptr1 = (&raw mut _RET_AREA.0).cast::<u8>();
+                    let vec2 = (result0).into_boxed_slice();
+                    let ptr2 = vec2.as_ptr().cast::<u8>();
+                    let len2 = vec2.len();
+                    ::core::mem::forget(vec2);
+                    *ptr1.add(::core::mem::size_of::<*const u8>()).cast::<usize>() = len2;
+                    *ptr1.add(0).cast::<*mut u8>() = ptr2.cast_mut();
+                    ptr1
+                }
+                #[doc(hidden)]
+                #[allow(non_snake_case)]
+                pub unsafe fn __post_return_method_module_source<T: GuestModule>(
+                    arg0: *mut u8,
+                ) {
+                    let l0 = *arg0.add(0).cast::<*mut u8>();
+                    let l1 = *arg0
+                        .add(::core::mem::size_of::<*const u8>())
+                        .cast::<usize>();
+                    let base2 = l0;
+                    let len2 = l1;
+                    _rt::cabi_dealloc(base2, len2 * 1, 1);
+                }
+                #[doc(hidden)]
+                #[allow(non_snake_case)]
                 pub unsafe fn _export_method_module_print_rich_cabi<T: GuestModule>(
                     arg0: *mut u8,
                     arg1: i32,
@@ -665,6 +696,7 @@ pub mod exports {
                     }
                     fn new(init: _rt::Vec<u8>) -> Self;
                     fn validate(&self) -> Option<ValidateError>;
+                    fn source(&self) -> _rt::Vec<u8>;
                     fn print_rich(
                         &self,
                         range: Range,
@@ -695,11 +727,21 @@ pub mod exports {
                         u8,) { unsafe { $($path_to_types)*::
                         __post_return_method_module_validate::<<$ty as
                         $($path_to_types)*:: Guest >::Module > (arg0) } } #[unsafe
-                        (export_name = "local:module/module#[method]module.print-rich")]
-                        unsafe extern "C" fn export_method_module_print_rich(arg0 : * mut
-                        u8, arg1 : i32, arg2 : i32,) -> * mut u8 { unsafe {
-                        $($path_to_types)*:: _export_method_module_print_rich_cabi::<<$ty
-                        as $($path_to_types)*:: Guest >::Module > (arg0, arg1, arg2) } }
+                        (export_name = "local:module/module#[method]module.source")]
+                        unsafe extern "C" fn export_method_module_source(arg0 : * mut
+                        u8,) -> * mut u8 { unsafe { $($path_to_types)*::
+                        _export_method_module_source_cabi::<<$ty as $($path_to_types)*::
+                        Guest >::Module > (arg0) } } #[unsafe (export_name =
+                        "cabi_post_local:module/module#[method]module.source")] unsafe
+                        extern "C" fn _post_return_method_module_source(arg0 : * mut u8,)
+                        { unsafe { $($path_to_types)*::
+                        __post_return_method_module_source::<<$ty as $($path_to_types)*::
+                        Guest >::Module > (arg0) } } #[unsafe (export_name =
+                        "local:module/module#[method]module.print-rich")] unsafe extern
+                        "C" fn export_method_module_print_rich(arg0 : * mut u8, arg1 :
+                        i32, arg2 : i32,) -> * mut u8 { unsafe { $($path_to_types)*::
+                        _export_method_module_print_rich_cabi::<<$ty as
+                        $($path_to_types)*:: Guest >::Module > (arg0, arg1, arg2) } }
                         #[unsafe (export_name =
                         "cabi_post_local:module/module#[method]module.print-rich")]
                         unsafe extern "C" fn _post_return_method_module_print_rich(arg0 :
@@ -940,21 +982,22 @@ pub(crate) use __export_wasm_tools_impl as export;
 )]
 #[doc(hidden)]
 #[allow(clippy::octal_escapes)]
-pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 638] = *b"\
-\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\xfd\x03\x01A\x02\x01\
-A\x02\x01B\x1b\x01r\x02\x05starty\x03endy\x04\0\x05range\x03\0\0\x01q\x08\x03str\
+pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 675] = *b"\
+\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\xa2\x04\x01A\x02\x01\
+A\x02\x01B\x1d\x01r\x02\x05starty\x03endy\x04\0\x05range\x03\0\0\x01q\x08\x03str\
 \x01s\0\x08new-line\x01y\0\x04name\0\0\x07literal\0\0\x07keyword\0\0\x04type\0\0\
 \x07comment\0\0\x05reset\0\0\x04\0\x0aprint-part\x03\0\x02\x01r\x03\x05range\x01\
 \x08raw-names\x0cdisplay-names\x04\0\x04item\x03\0\x04\x01r\x02\x07messages\x06o\
 ffsety\x04\0\x0evalidate-error\x03\0\x06\x04\0\x06module\x03\x01\x01p}\x01i\x08\x01\
 @\x01\x04init\x09\0\x0a\x04\0\x13[constructor]module\x01\x0b\x01h\x08\x01k\x07\x01\
-@\x01\x04self\x0c\0\x0d\x04\0\x17[method]module.validate\x01\x0e\x01p\x03\x01j\x01\
-\x0f\x01s\x01@\x02\x04self\x0c\x05range\x01\0\x10\x04\0\x19[method]module.print-\
-rich\x01\x11\x01j\x01s\x01s\x01@\x02\x04self\x0c\x05range\x01\0\x12\x04\0\x1a[me\
-thod]module.print-plain\x01\x13\x01p\x05\x01@\x01\x04self\x0c\0\x14\x04\0\x14[me\
-thod]module.items\x01\x15\x04\0\x13local:module/module\x05\0\x04\0\x17local:modu\
-le/wasm-tools\x04\0\x0b\x10\x01\0\x0awasm-tools\x03\0\0\0G\x09producers\x01\x0cp\
-rocessed-by\x02\x0dwit-component\x070.227.1\x10wit-bindgen-rust\x060.41.0";
+@\x01\x04self\x0c\0\x0d\x04\0\x17[method]module.validate\x01\x0e\x01@\x01\x04sel\
+f\x0c\0\x09\x04\0\x15[method]module.source\x01\x0f\x01p\x03\x01j\x01\x10\x01s\x01\
+@\x02\x04self\x0c\x05range\x01\0\x11\x04\0\x19[method]module.print-rich\x01\x12\x01\
+j\x01s\x01s\x01@\x02\x04self\x0c\x05range\x01\0\x13\x04\0\x1a[method]module.prin\
+t-plain\x01\x14\x01p\x05\x01@\x01\x04self\x0c\0\x15\x04\0\x14[method]module.item\
+s\x01\x16\x04\0\x13local:module/module\x05\0\x04\0\x17local:module/wasm-tools\x04\
+\0\x0b\x10\x01\0\x0awasm-tools\x03\0\0\0G\x09producers\x01\x0cprocessed-by\x02\x0d\
+wit-component\x070.227.1\x10wit-bindgen-rust\x060.41.0";
 #[inline(never)]
 #[doc(hidden)]
 pub fn __link_custom_section_describing_imports() {

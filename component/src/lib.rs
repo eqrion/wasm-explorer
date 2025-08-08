@@ -170,6 +170,10 @@ impl GuestModule for Module {
         result.map(|_| writer.result).map_err(|e| e.to_string())
     }
 
+    fn source(&self) -> Vec<u8> {
+        self.bytes.clone()
+    }
+
     fn items(&self) -> Vec<Item> {
         let items = gather_items(&self.bytes);
         items.unwrap_or(Vec::new())

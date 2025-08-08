@@ -33,6 +33,8 @@ interface module {
 
         validate: func() -> option<validate-error>;
 
+        source: func() -> list<u8>;
+
         print-rich: func(range: range) -> result<list<print-part>, string>;
         print-plain: func(range: range) -> result<string, string>;
 
