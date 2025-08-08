@@ -62,6 +62,7 @@ let registry = new FinalizationRegistry(async (moduleId: ModuleId) => {
 export class Module {
   id: ModuleId;
   items: Item[];
+  printRichCache = new Map<string, PrintPart[]>();
 
   constructor(id: ModuleId, items: Item[]) {
     this.id = id;
@@ -91,7 +92,17 @@ export class Module {
     return new Module(constructResponse.moduleId, itemsResponse.result);
   }
 
+  getCacheKey(range: Range): string {
+    return `${range.start}-${range.end}`;
+  }
+
   async printRich(range: Range): Promise<PrintPart[]> {
+    const cacheKey = this.getCacheKey(range);
+    const cached = this.printRichCache.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
     let response = await sendMessage({
       kind: MessageToWorkerKind.PrintRich,
       id: nextMessageId++,
@@ -101,6 +112,8 @@ export class Module {
     if (response.kind !== MessageFromWorkerKind.PrintRich) {
       throw new Error("unexpected response kind");
     }
+
+    this.printRichCache.set(cacheKey, response.result);
     return response.result;
   }
 
