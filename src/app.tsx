@@ -108,7 +108,6 @@ function AppInner() {
       items.length > 0 &&
       items[0].range.end - items[0].range.start <= MaxBytesForRich
     ) {
-      console.log("setting");
       url.searchParams.set("item", items[0].displayName);
     } else {
       url.searchParams.delete("item");
@@ -585,14 +584,18 @@ export function WatViewer({
       let xref = e.target.innerText;
 
       let xrefIsIndex = !isNaN(parseInt(xref));
-      let textNode = e.target.previousSibling;
+      let previousSibling = e.target.previousSibling;
 
       // Apply heuristics to guess what an integer 'name' refers to
-      if (xrefIsIndex && textNode && textNode.nodeType === Node.TEXT_NODE) {
-        let text = (textNode.textContent ?? "").trimEnd();
-        if (text.endsWith("call") || text.endsWith("func")) {
+      if (xrefIsIndex && previousSibling) {
+        let text = (previousSibling.textContent ?? "").trimEnd();
+
+        let funcPattern = /(call|func)$/;
+        let typePattern = /((struct\.\w+)|(array\.\w+)|type)$/;
+
+        if (text.match(funcPattern)) {
           xref = "func " + xref;
-        } else if (text.endsWith("type")) {
+        } else if (text.match(typePattern)) {
           xref = "type " + xref;
         }
       } else if (xref.startsWith("$")) {
