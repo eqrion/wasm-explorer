@@ -94,6 +94,7 @@ function AppInner() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Item[]>([]);
   let loadedModule = React.use(module);
+  let validateError = loadedModule.validateError;
   let items = loadedModule.items;
   let selectedItemIndex: number | null = !item
     ? null
@@ -292,8 +293,23 @@ function AppInner() {
     }
   };
 
-  const panels: ColumnPanel[] = useMemo(
-    () => [
+  const panels: ColumnPanel[] = useMemo(() => {
+    if (validateError) {
+      return [
+        {
+          id: "error-view",
+          title: `Validation Error at 0x${validateError.offset.toString(16)}`,
+          content: (
+            <pre className="bg-red-50 p-4 text-red-600 rounded border border-red-200 whitespace-pre">
+              {validateError.message}
+            </pre>
+          ),
+          defaultWidth: 100,
+          minWidth: 100,
+        },
+      ];
+    }
+    return [
       {
         id: "wat-viewer",
         title: "Text Format",
@@ -333,9 +349,8 @@ function AppInner() {
         defaultWidth: 40,
         minWidth: 15,
       },
-    ],
-    [loadedModule, item, offset],
-  );
+    ];
+  }, [loadedModule, item, offset]);
 
   return (
     <div

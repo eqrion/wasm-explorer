@@ -2,6 +2,7 @@ import type {
   Range,
   PrintPart,
   Item,
+  ValidateError,
 } from "../component-built/interfaces/local-module-module.d.ts";
 import {
   LoadedMessageId,
@@ -62,11 +63,17 @@ let registry = new FinalizationRegistry(async (moduleId: ModuleId) => {
 export class Module {
   id: ModuleId;
   items: Item[];
+  validateError: ValidateError | null = null;
   printRichCache = new Map<string, PrintPart[]>();
 
-  constructor(id: ModuleId, items: Item[]) {
+  constructor(
+    id: ModuleId,
+    items: Item[],
+    validateError: ValidateError | null = null,
+  ) {
     this.id = id;
     this.items = items;
+    this.validateError = validateError;
     registry.register(this, id);
   }
 
@@ -80,16 +87,11 @@ export class Module {
       throw new Error("unexpected response kind");
     }
 
-    let itemsResponse = await sendMessage({
-      kind: MessageToWorkerKind.Items,
-      id: nextMessageId++,
-      moduleId: constructResponse.moduleId,
-    });
-    if (itemsResponse.kind !== MessageFromWorkerKind.Items) {
-      throw new Error("unexpected response kind");
-    }
-
-    return new Module(constructResponse.moduleId, itemsResponse.result);
+    return new Module(
+      constructResponse.moduleId,
+      constructResponse.items,
+      constructResponse.validateError,
+    );
   }
 
   getCacheKey(range: Range): string {

@@ -40,10 +40,13 @@ addEventListener("message", ({ data }: { data: MessageToWorker }) => {
         let moduleId = nextModuleId++;
         let result = new Module(new Uint8Array(data.source));
         modules[moduleId] = result;
+        let validateError = result.validate();
         postMessage({
           kind: MessageFromWorkerKind.Construct,
           id: data.id,
           moduleId,
+          validateError: validateError ?? null,
+          items: validateError ? [] : result.items(),
         });
         return;
       }
@@ -70,12 +73,6 @@ addEventListener("message", ({ data }: { data: MessageToWorker }) => {
           id: data.id,
           result,
         });
-        return;
-      }
-      case MessageToWorkerKind.Items: {
-        let module = modules[data.moduleId];
-        let result = module.items();
-        postMessage({ kind: MessageFromWorkerKind.Items, id: data.id, result });
         return;
       }
       default: {

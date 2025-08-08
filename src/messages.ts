@@ -3,6 +3,7 @@ import type {
   Range,
   PrintPart,
   Item,
+  ValidateError,
 } from "../component-built/interfaces/local-module-module.js";
 
 export type ModuleId = number;
@@ -18,28 +19,31 @@ export enum MessageFromWorkerKind {
   Destroy = "destroy",
   PrintRich = "printRich",
   PrintPlain = "printPlain",
-  Items = "items",
 }
 
 export type MessageFromWorker =
   | { kind: MessageFromWorkerKind.Loaded; id: MessageId }
   | { kind: MessageFromWorkerKind.Exception; id: MessageId; exception: any }
-  | { kind: MessageFromWorkerKind.Construct; id: MessageId; moduleId: ModuleId }
+  | {
+      kind: MessageFromWorkerKind.Construct;
+      id: MessageId;
+      moduleId: ModuleId;
+      items: Item[];
+      validateError: ValidateError | null;
+    }
   | { kind: MessageFromWorkerKind.Destroy; id: MessageId }
   | {
       kind: MessageFromWorkerKind.PrintRich;
       id: MessageId;
       result: PrintPart[];
     }
-  | { kind: MessageFromWorkerKind.PrintPlain; id: MessageId; result: string }
-  | { kind: MessageFromWorkerKind.Items; id: MessageId; result: Item[] };
+  | { kind: MessageFromWorkerKind.PrintPlain; id: MessageId; result: string };
 
 export enum MessageToWorkerKind {
   Construct = "construct",
   Destroy = "destroy",
   PrintRich = "printRich",
   PrintPlain = "printPlain",
-  Items = "items",
 }
 
 export type MessageToWorker =
@@ -56,5 +60,4 @@ export type MessageToWorker =
       id: MessageId;
       moduleId: ModuleId;
       range: Range;
-    }
-  | { kind: MessageToWorkerKind.Items; id: MessageId; moduleId: ModuleId };
+    };
