@@ -1,4 +1,5 @@
 import * as React from "react";
+import * as api from "./api.js";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { Module } from "./module.js";
 import { fuzzy } from "./utilities.js";
@@ -13,6 +14,8 @@ import {
 import { TreeView } from "./components/TreeView.js";
 import { ItemPicker } from "./components/ItemPicker.js";
 import { Modal } from "./components/Modal.js";
+import { module } from "../component-built/component.js";
+import { ShareButton } from "./components/ShareButton.js";
 
 const MaxBytesForRich = 100 * 1024;
 const initialModule = Module.load(
@@ -470,6 +473,9 @@ function Toolbar(props: {
       >
         Download
       </button>
+      
+      <ShareButton module={props.module} />
+
       <button
         onClick={() => fileInputRef.current?.click()}
         className="px-4 py-2 bg-blue-600 text-white border-none rounded cursor-pointer text-sm font-medium hover:bg-blue-700 transition-colors"
