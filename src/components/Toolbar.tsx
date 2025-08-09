@@ -52,7 +52,7 @@ export function Toolbar(props: {
       >
         Download
       </button>
-      
+
       <ShareButton module={props.module} />
 
       <button

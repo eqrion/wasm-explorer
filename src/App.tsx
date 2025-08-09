@@ -3,9 +3,7 @@ import { useState, useEffect, useMemo } from "react";
 import { createRoot } from "react-dom/client";
 import { Module } from "./Module.js";
 import { fuzzy } from "./Utilities.js";
-import type {
-  Item,
-} from "../component-built/interfaces/local-module-module.js";
+import type { Item } from "../component-built/interfaces/local-module-module.js";
 import {
   ResizableColumns,
   type ColumnPanel,

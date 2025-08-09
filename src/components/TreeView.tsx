@@ -13,28 +13,27 @@ interface ItemTree {
   children: ItemTree[];
 }
 
-function fuzzyMatchTreeView(
-  query: string,
-  itemName: string,
-  itemRange?: Range,
-): number {
+function fuzzyMatchRange(query: string, range: Range): number {
   const queryLower = query.toLowerCase();
-  const nameLower = itemName.toLowerCase();
-
-  // Check if query is a hexadecimal number
-  if (queryLower.startsWith("0x") && itemRange) {
-    const hexValue = parseInt(queryLower.replace(/^0x/, ""), 16);
-    if (!isNaN(hexValue)) {
-      // Check if the hex value is within this item's range
-      if (hexValue >= itemRange.start && hexValue <= itemRange.end) {
-        const rangeSize = itemRange.end - itemRange.start;
-        // Give higher score for smaller ranges (more specific matches)
-        // Use inverse relationship: smaller ranges get higher scores
-        return Math.max(0.5, 1 - rangeSize / 1000000); // Cap minimum at 0.5, scale by MB
-      }
-      return 0; // No match if hex value is outside range
-    }
+  const hexValue = parseInt(queryLower.replace(/^0x/, ""), 16);
+  if (isNaN(hexValue)) {
+    return 0;
   }
+
+  // Check if the hex value is within this item's range
+  if (hexValue >= range.start && hexValue <= range.end) {
+    const rangeSize = range.end - range.start;
+    // Give higher score for smaller ranges (more specific matches)
+    // Use inverse relationship: smaller ranges get higher scores
+    return Math.max(0.5, 1 - rangeSize / 1000000); // Cap minimum at 0.5, scale by MB
+  }
+  return 0; // No match if hex value is outside range
+}
+
+// TODO: unify with Utilities.ts/fuzzy
+function fuzzyMatchName(query: string, name: string): number {
+  const queryLower = query;
+  const nameLower = name.toLowerCase();
 
   // Calculate similarity score (simple character overlap)
   const commonChars = nameLower
@@ -52,6 +51,20 @@ function fuzzyMatchTreeView(
   return score;
 }
 
+function fuzzyMatchItem(query: string, item: ItemTree | Item): number {
+  return Math.max(
+    fuzzyMatchName(query, item.displayName),
+    fuzzyMatchName(query, item.rawName),
+    fuzzyMatchRange(query, item.range),
+  );
+}
+
+const SIZE_LIMIT_KB = 512;
+const SIZE_LIMIT_BYTES = SIZE_LIMIT_KB * 1024;
+const ROOT_INDEX = -1;
+const MAX_SEARCH_MATCHES = 100;
+const MIN_FUZZY_THRESHOLD = 0.3;
+
 function itemsToTree(items: Item[]): ItemTree {
   if (items.length === 0) {
     return {
@@ -67,7 +80,7 @@ function itemsToTree(items: Item[]): ItemTree {
     rawName: "root",
     displayName: "root",
     range: { start: 0, end: items[items.length - 1]?.range.end || 0 },
-    index: -1,
+    index: ROOT_INDEX,
     children: [],
   };
 
@@ -123,17 +136,16 @@ export function TreeView(props: TreeViewProps) {
     [props.items],
   );
 
-  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(
-    new Set(["root"]),
+  const [expandedNodes, setExpandedNodes] = useState<Set<number>>(
+    new Set([ROOT_INDEX]),
   );
-  const [selectedIndex, setSelectedIndex] = useState<number>(-1);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [searchText, setSearchText] = useState("");
-  const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
+  const [searchMatches, setSearchMatches] = useState<Set<number>>(new Set());
+  const [highlightedIndex, setHighlightedIndex] = useState<number | null>(null);
   const selectedNodeRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
-
-  const SIZE_LIMIT_KB = 512;
-  const SIZE_LIMIT_BYTES = SIZE_LIMIT_KB * 1024;
+  const hasSearchText = searchText.trim() !== "";
 
   // Focus search box when 'f' key is pressed
   useEffect(() => {
@@ -153,10 +165,57 @@ export function TreeView(props: TreeViewProps) {
     return () => document.removeEventListener("keydown", handleGlobalKeyDown);
   }, []);
 
+  // Compute search matches when search text or items change
+  const computeSearchMatches = (query: string): Set<number> => {
+    const matches = new Set<number>();
+    matches.add(ROOT_INDEX);
+
+    if (query.trim() === "") {
+      return matches;
+    }
+    const queryLower = query.toLowerCase();
+
+    const match = (node: ItemTree): boolean => {
+      // Recursively match children first
+      let childMatched = false;
+      node.children.forEach((child) => {
+        if (match(child)) {
+          childMatched = true;
+        }
+      });
+
+      // If one of our children matched, we match
+      if (childMatched) {
+        matches.add(node.index);
+        return true;
+      }
+
+      // Otherwise check if we fuzzy match, but limit the number of these to a maximum size
+      if (
+        matches.size < MAX_SEARCH_MATCHES &&
+        fuzzyMatchItem(queryLower, node) >= MIN_FUZZY_THRESHOLD
+      ) {
+        matches.add(node.index);
+        return true;
+      }
+
+      return false;
+    };
+    match(itemTree);
+
+    return matches;
+  };
+
+  // Update search matches when search text changes
+  useEffect(() => {
+    const matches = computeSearchMatches(searchText);
+    setSearchMatches(matches);
+  }, [searchText, props.items, itemTree]);
+
   // Find closest match for search text using similarity scoring
   useEffect(() => {
-    if (!searchText.trim()) {
-      setHighlightedIndex(-1);
+    if (!hasSearchText) {
+      setHighlightedIndex(null);
       return;
     }
 
@@ -164,21 +223,12 @@ export function TreeView(props: TreeViewProps) {
 
     let bestMatch = -1;
     let bestScore = 0;
-    const threshold = 0.3; // Minimum similarity threshold
 
     props.items.forEach((item, index) => {
-      const score1 = fuzzyMatchTreeView(query, item.displayName, item.range);
-      if (score1 > bestScore && score1 >= threshold) {
-        bestScore = score1;
+      const score = fuzzyMatchItem(query, item);
+      if (score > bestScore && score >= MIN_FUZZY_THRESHOLD) {
+        bestScore = score;
         bestMatch = index;
-      }
-
-      if (item.displayName !== item.rawName) {
-        const score2 = fuzzyMatchTreeView(query, item.rawName, item.range);
-        if (score2 > bestScore && score2 >= threshold) {
-          bestScore = score2;
-          bestMatch = index;
-        }
       }
     });
 
@@ -190,31 +240,24 @@ export function TreeView(props: TreeViewProps) {
     const visibleItems: number[] = [];
 
     const collectVisibleItems = (node: ItemTree) => {
-      if (node.index >= 0 && shouldShowNode(node)) {
+      const searchMatched = searchMatches.has(node.index);
+      if (hasSearchText && !searchMatched) {
+        return;
+      }
+
+      if (node.index != ROOT_INDEX) {
         visibleItems.push(node.index);
       }
 
-      const isExpanded = expandedNodes.has(
-        findNodePath(itemTree, node.index) || "",
-      );
-      const shouldAutoExpand =
-        searchText.trim() &&
-        node.children.some((child) => shouldShowNode(child));
-
-      if (isExpanded || shouldAutoExpand) {
+      const isExpanded =
+        (hasSearchText && searchMatched) || expandedNodes.has(node.index);
+      if (isExpanded) {
         node.children.forEach((child) => {
-          if (shouldShowNode(child)) {
-            collectVisibleItems(child);
-          }
+          collectVisibleItems(child);
         });
       }
     };
-
-    itemTree.children.forEach((child) => {
-      if (shouldShowNode(child)) {
-        collectVisibleItems(child);
-      }
-    });
+    collectVisibleItems(itemTree);
 
     return visibleItems;
   };
@@ -222,30 +265,29 @@ export function TreeView(props: TreeViewProps) {
   // Expand root and first item when the tree changes
   useEffect(() => {
     if (props.items.length > 0) {
-      const expandedSet = new Set(["root"]);
+      const expandedSet = new Set([ROOT_INDEX]);
       if (itemTree.children.length > 0) {
-        expandedSet.add(itemTree.children[0].rawName);
+        expandedSet.add(itemTree.children[0].index);
       }
       setExpandedNodes(expandedSet);
     }
-  }, [itemTree, props.items.length]);
+  }, [itemTree]);
 
-  // Find the path to a node with the given index
-  const findNodePath = (
+  // Find all parent nodes of a given node index
+  const findParentIndices = (
     node: ItemTree,
     targetIndex: number,
-    currentPath: string = "root",
-  ): string | null => {
+    parents: number[] = [],
+  ): number[] | null => {
     if (node.index === targetIndex) {
-      return currentPath;
+      return parents;
     }
 
     for (const child of node.children) {
-      const childPath =
-        currentPath === "root"
-          ? child.rawName
-          : `${currentPath}/${child.rawName}`;
-      const result = findNodePath(child, targetIndex, childPath);
+      const result = findParentIndices(child, targetIndex, [
+        ...parents,
+        node.index,
+      ]);
       if (result) return result;
     }
 
@@ -256,19 +298,12 @@ export function TreeView(props: TreeViewProps) {
   const expandPathToSelected = (targetIndex: number) => {
     if (targetIndex < 0) return;
 
-    const targetPath = findNodePath(itemTree, targetIndex);
-    if (!targetPath) return;
+    const parentIndices = findParentIndices(itemTree, targetIndex);
+    if (!parentIndices) return;
 
     setExpandedNodes((prev) => {
       const next = new Set(prev);
-
-      // Expand all parent paths
-      const pathParts = targetPath.split("/");
-      for (let i = 1; i <= pathParts.length; i++) {
-        const partialPath = pathParts.slice(0, i).join("/") || "root";
-        next.add(partialPath);
-      }
-
+      parentIndices.forEach((index) => next.add(index));
       return next;
     });
   };
@@ -294,13 +329,13 @@ export function TreeView(props: TreeViewProps) {
     }
   }, [props.selectedItem, selectedIndex, itemTree]);
 
-  const toggleExpanded = (nodePath: string) => {
+  const toggleExpanded = (nodeIndex: number) => {
     setExpandedNodes((prev) => {
       const next = new Set(prev);
-      if (next.has(nodePath)) {
-        next.delete(nodePath);
+      if (next.has(nodeIndex)) {
+        next.delete(nodeIndex);
       } else {
-        next.add(nodePath);
+        next.add(nodeIndex);
       }
       return next;
     });
@@ -323,7 +358,11 @@ export function TreeView(props: TreeViewProps) {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && highlightedIndex >= 0) {
+    if (
+      e.key === "Enter" &&
+      highlightedIndex !== null &&
+      highlightedIndex !== ROOT_INDEX
+    ) {
       let offset: number | undefined = parseInt(
         searchText.replace(/^0x/, ""),
         16,
@@ -343,7 +382,7 @@ export function TreeView(props: TreeViewProps) {
 
       let newIndex: number;
 
-      if (highlightedIndex === -1) {
+      if (highlightedIndex === null) {
         // No current highlight, select first item
         newIndex = visibleItems[0];
       } else {
@@ -371,52 +410,21 @@ export function TreeView(props: TreeViewProps) {
     }
   };
 
-  const shouldShowNode = (node: ItemTree): boolean => {
-    if (!searchText.trim()) {
-      return true;
-    }
-
-    const query = searchText.toLowerCase();
-    const name1 = node.rawName.toLowerCase();
-    const name2 = node.displayName.toLowerCase();
-
-    // Check if search text is a hexadecimal number with or without 0x prefix
-    const hexValue = parseInt(query.replace(/^0x/, ""), 16);
-    if (!isNaN(hexValue)) {
-      // Check if the hex value is within this node's range
-      if (hexValue >= node.range.start && hexValue <= node.range.end) {
-        return true;
-      }
-    }
-
-    // Show if this node matches
-    if (name1.includes(query) || name2.includes(query)) {
-      return true;
-    }
-
-    // Show if any descendant matches
-    return node.children.some((child) => shouldShowNode(child));
-  };
-
   const renderTreeNode = (
     node: ItemTree,
     path: string,
     depth: number = 0,
   ): React.ReactNode => {
-    const isExpanded = expandedNodes.has(path);
-    const isSelected = selectedIndex === node.index;
-    const isClosestMatch =
-      highlightedIndex >= 0 && node.index === highlightedIndex;
+    const searchMatched = searchMatches.has(node.index);
+    if (hasSearchText && !searchMatched) return null;
+
     const hasChildren = node.children.length > 0;
-    const shouldShow = shouldShowNode(node);
-
-    if (!shouldShow) return null;
-
-    // Auto-expand nodes when searching to show matches
-    const shouldAutoExpand =
-      searchText.trim() && node.children.some((child) => shouldShowNode(child));
-
-    const effectivelyExpanded = isExpanded || shouldAutoExpand;
+    const isExpanded =
+      (hasSearchText && searchMatched) || expandedNodes.has(node.index);
+    const isSelected = selectedIndex === node.index;
+    const isHighlighted = node.index === highlightedIndex;
+    // Uncomment here and below to debug search scores
+    // const score = fuzzyMatchItem(searchText.toLowerCase(), node);
 
     return (
       <div key={path} className="select-none">
@@ -426,7 +434,7 @@ export function TreeView(props: TreeViewProps) {
             className={`flex items-center py-1 px-2 cursor-pointer hover:bg-gray-100 ${
               isSelected
                 ? "bg-blue-100 text-blue-900"
-                : isClosestMatch
+                : isHighlighted
                   ? "bg-yellow-100 border-2 border-yellow-400 text-yellow-900"
                   : ""
             }`}
@@ -437,16 +445,17 @@ export function TreeView(props: TreeViewProps) {
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  toggleExpanded(path);
+                  toggleExpanded(node.index);
                 }}
                 className="mr-1 w-4 h-4 flex items-center justify-center text-gray-500 hover:text-gray-700"
               >
-                {effectivelyExpanded ? "▼" : "▶"}
+                {isExpanded ? "▼" : "▶"}
               </button>
             )}
             {!hasChildren && <div className="w-5" />}
             <span className="text-sm truncate flex-1">{node.displayName}</span>
-            {node.index >= 0 && (
+            {/* Uncomment to debug search scores {hasSearchText && (<span className="text-xs text-gray-500 ml-2">{score}</span>)} */}
+            {node.index !== ROOT_INDEX && (
               <span className="text-xs text-gray-500 ml-2">
                 [0x{node.range.start.toString(16)}-0x
                 {node.range.end.toString(16)}] (
@@ -455,7 +464,7 @@ export function TreeView(props: TreeViewProps) {
             )}
           </div>
         )}
-        {effectivelyExpanded && hasChildren && (
+        {isExpanded && hasChildren && (
           <div>
             {node.children.map((child) => {
               const childPath =

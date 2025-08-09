@@ -8,15 +8,17 @@ interface ShareButtonProps {
 }
 
 export function ShareButton({ module }: ShareButtonProps) {
-  const [shareState, setShareState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
-  const [shareCode, setShareCode] = useState<string>('');
+  const [shareState, setShareState] = useState<
+    "idle" | "loading" | "success" | "error"
+  >("idle");
+  const [shareCode, setShareCode] = useState<string>("");
 
   const handleShare = async () => {
     if (!module) {
       return;
     }
-    
-    setShareState('loading');
+
+    setShareState("loading");
     try {
       const source = await module.getSource();
       const sourceBuffer = source.buffer;
@@ -26,10 +28,10 @@ export function ShareButton({ module }: ShareButtonProps) {
 
       const code = await api.storePayload(sourceBuffer);
       setShareCode(code);
-      setShareState('success');
+      setShareState("success");
     } catch (error) {
-      console.error('Share failed:', error);
-      setShareState('error');
+      console.error("Share failed:", error);
+      setShareState("error");
     }
   };
 
@@ -37,16 +39,16 @@ export function ShareButton({ module }: ShareButtonProps) {
     try {
       await navigator.clipboard.writeText(shareCode);
     } catch (error) {
-      console.error('Copy failed:', error);
+      console.error("Copy failed:", error);
     }
   };
 
   const resetShare = () => {
-    setShareState('idle');
-    setShareCode('');
+    setShareState("idle");
+    setShareCode("");
   };
 
-  if (shareState === 'idle') {
+  if (shareState === "idle") {
     return (
       <button
         onClick={handleShare}
@@ -57,7 +59,7 @@ export function ShareButton({ module }: ShareButtonProps) {
     );
   }
 
-  if (shareState === 'loading') {
+  if (shareState === "loading") {
     return (
       <div className="px-4 py-2 flex items-center gap-2">
         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
@@ -66,7 +68,7 @@ export function ShareButton({ module }: ShareButtonProps) {
     );
   }
 
-  if (shareState === 'success') {
+  if (shareState === "success") {
     return (
       <div className="flex items-center gap-2">
         <input
@@ -74,7 +76,7 @@ export function ShareButton({ module }: ShareButtonProps) {
           value={shareCode}
           readOnly
           className="px-3 py-2 text-sm border border-gray-300 rounded bg-gray-50 text-gray-700 font-mono"
-          style={{ width: '120px' }}
+          style={{ width: "120px" }}
         />
         <button
           onClick={handleCopyShareCode}
@@ -94,7 +96,7 @@ export function ShareButton({ module }: ShareButtonProps) {
     );
   }
 
-  if (shareState === 'error') {
+  if (shareState === "error") {
     return (
       <div className="flex items-center gap-2">
         <span className="text-red-500 text-lg">⚠️</span>
