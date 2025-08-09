@@ -3,7 +3,7 @@
   "scripts": {
     "build": "npm run build-component && npm run transpile && npm run typecheck && npm run build-js && npm run build-css && npm run copy-files",
     "build-component": "cd component && cargo component build --release --target wasm32-wasip1",
-    "build-js": "for source in worker.ts index.tsx; do esbuild --bundle --format=esm src/$source --outdir=dist; done",
+    "build-js": "for source in Worker.ts App.tsx; do esbuild --bundle --format=esm src/$source --outdir=dist; done",
     "build-css": "npx @tailwindcss/cli -i ./pages/style.css -o ./dist/style.css",
     "copy-files": "cp pages/index.html pages/favicon.png pages/logo.svg component-built/*.wasm dist",
     "clean": "rm -rf component/src/bindings.rs component-built dist && echo '## you will need to run `cargo clean` separately to delete cargo artifacts'",

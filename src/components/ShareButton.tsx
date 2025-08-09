@@ -1,7 +1,7 @@
 import * as React from "react";
 import { useState } from "react";
-import * as api from "../api.js";
-import { Module } from "../module.js";
+import * as api from "../Api.js";
+import { Module } from "../Module.js";
 
 interface ShareButtonProps {
   module: Module;

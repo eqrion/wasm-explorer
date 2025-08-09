@@ -3,7 +3,7 @@ import type {
   PrintPart,
   Item,
   ValidateError,
-} from "../component-built/interfaces/local-module-module.d.ts";
+} from "../component-built/interfaces/local-module-module.js";
 import {
   LoadedMessageId,
   type ModuleId,
@@ -13,7 +13,7 @@ import {
   MessageFromWorkerKind,
   type MessageFromWorker,
   MessageToWorkerKind,
-} from "./messages.js";
+} from "./Messages.js";
 
 let nextMessageId: MessageId = FirstMessageId;
 

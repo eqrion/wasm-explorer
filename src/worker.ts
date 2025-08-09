@@ -4,18 +4,18 @@ import type {
   Range,
   PrintPart,
   Item,
-} from "../component-built/interfaces/local-module-module.d.ts";
+} from "../component-built/interfaces/local-module-module.js";
 import type {
   ModuleId,
   MessageId,
   MessageToWorker,
   MessageFromWorker,
-} from "./messages.js";
+} from "./Messages.js";
 import {
   LoadedMessageId,
   MessageToWorkerKind,
   MessageFromWorkerKind,
-} from "./messages.js";
+} from "./Messages.js";
 
 let Module = module.Module;
 
