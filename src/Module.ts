@@ -45,7 +45,7 @@ async function waitForResponse(id: MessageId): Promise<MessageFromWorker> {
   });
 }
 
-let worker = new Worker("./worker.js", { type: "module" });
+let worker = new Worker("./Worker.js", { type: "module" });
 console.log("launched worker");
 
 // Technically a race condition, we should have the event listener installed before launching the worker
