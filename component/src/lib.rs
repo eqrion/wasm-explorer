@@ -139,7 +139,9 @@ impl GuestModule for Module {
     }
 
     fn validate(&self) -> Option<ValidateError> {
-        match wasmparser::validate(&self.bytes) {
+        match wasmparser::Validator::new_with_features(wasmparser::WasmFeatures::all())
+            .validate_all(&self.bytes)
+        {
             Ok(_) => None,
             Err(e) => Some(ValidateError {
                 message: e.message().to_owned(),
