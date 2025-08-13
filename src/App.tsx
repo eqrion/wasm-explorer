@@ -191,6 +191,9 @@ function AppInner() {
       url.searchParams.delete("offset");
     }
 
+    if (url.toString() === window.location.href) {
+      return;
+    }
     window.history.pushState({}, "", url.toString());
   }, [item, offset]);
 
