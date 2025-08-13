@@ -130,10 +130,10 @@ function AppInner() {
   }, [loadedModule]);
 
   useEffect(() => {
-    const updateItemFromURL = () => {
+    const updateFromURL = () => {
       const urlParams = new URLSearchParams(window.location.search);
-      const itemParam = urlParams.get("item");
 
+      const itemParam = urlParams.get("item");
       if (itemParam !== null) {
         const foundItem = items.find(
           (item) =>
@@ -143,37 +143,8 @@ function AppInner() {
       } else {
         setItem(null);
       }
-    };
 
-    // Update on initial load
-    updateItemFromURL();
-
-    // Listen for URL changes
-    const handlePopState = () => {
-      updateItemFromURL();
-    };
-
-    window.addEventListener("popstate", handlePopState);
-    return () => {
-      window.removeEventListener("popstate", handlePopState);
-    };
-  }, [items]);
-
-  useEffect(() => {
-    const url = new URL(window.location.href);
-    if (item !== null) {
-      url.searchParams.set("item", item.displayName);
-    } else {
-      url.searchParams.delete("item");
-    }
-    window.history.pushState({}, "", url.toString());
-  }, [item]);
-
-  useEffect(() => {
-    const updateOffsetFromURL = () => {
-      const urlParams = new URLSearchParams(window.location.search);
       const offsetParam = urlParams.get("offset");
-
       if (offsetParam !== null) {
         let parsedOffset: number;
         if (offsetParam.startsWith("0x")) {
@@ -192,26 +163,36 @@ function AppInner() {
     };
 
     // Update on initial load
-    updateOffsetFromURL();
+    updateFromURL();
 
     // Listen for URL changes
     const handlePopState = () => {
-      updateOffsetFromURL();
+      updateFromURL();
     };
 
     window.addEventListener("popstate", handlePopState);
-    return () => window.removeEventListener("popstate", handlePopState);
-  }, []);
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, [items]);
 
   useEffect(() => {
     const url = new URL(window.location.href);
+
+    if (item !== null) {
+      url.searchParams.set("item", item.displayName);
+    } else {
+      url.searchParams.delete("item");
+    }
+
     if (offset !== null) {
       url.searchParams.set("offset", `0x${offset.toString(16)}`);
     } else {
       url.searchParams.delete("offset");
     }
+
     window.history.pushState({}, "", url.toString());
-  }, [offset]);
+  }, [item, offset]);
 
   useEffect(() => {
     if (offset !== null && item !== null) {
