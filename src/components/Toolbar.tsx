@@ -46,6 +46,8 @@ export function Toolbar(props: {
 
       <div className="flex-1" />
 
+      {/* <ShareButton module={props.module} /> */}
+
       <button
         onClick={() => props.onDownload()}
         className="px-4 py-2 bg-blue-600 text-white border-none rounded cursor-pointer text-sm font-medium hover:bg-blue-700 transition-colors"
@@ -53,15 +55,13 @@ export function Toolbar(props: {
         Download
       </button>
 
-      <ShareButton module={props.module} />
-
       <button
         onClick={() => fileInputRef.current?.click()}
         className="px-4 py-2 bg-blue-600 text-white border-none rounded cursor-pointer text-sm font-medium hover:bg-blue-700 transition-colors"
       >
         Open
       </button>
-      <button
+      {/* <button
         onClick={() => props.onShowHelp()}
         className="py-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
         title="Help"
@@ -80,7 +80,7 @@ export function Toolbar(props: {
           <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
           <circle cx="12" cy="17" r="0.5" />
         </svg>
-      </button>
+      </button> */}
       <input
         ref={fileInputRef}
         type="file"
