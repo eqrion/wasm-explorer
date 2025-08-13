@@ -2,10 +2,12 @@
 
 A prototype web-based tool for exploring and analyzing WebAssembly modules. Built with React, TypeScript, and Rust using WebAssembly Components.
 
+[View a hosted version here](https://eqrion.github.io/wasm-explorer).
+
 ## Features
 
-- **Interactive WASM Module Explorer**: Navigate through WebAssembly module structure with a tree view.
-- **Rich Text Format Viewer**: View WebAssembly Text (WAT) format with syntax highlighting and semantic coloring
+- **Interactive Explorer**: Navigate through WebAssembly module structure with a virtualized tree view
+- **Rich Text Format Viewer**: View WebAssembly Text format with syntax highlighting and semantic coloring
 - **Real-time Navigation**: Click on items in the navigator to jump to specific sections in the text format
 - **Cross-Reference Navigation**: Click on function names and references to navigate between related items
 - **Search Functionality**: Find and navigate to specific items within modules
@@ -17,13 +19,13 @@ A prototype web-based tool for exploring and analyzing WebAssembly modules. Buil
 
 ## Feature roadmap
 
-- ** URL proxy server **: Dedicated server to proxy URL requests to workaround CORS restrictions.
-- ** Sharing server **: Simple server or P2P code for sharing a loaded module with someone else.
-- ** Component support **
-- ** Find callers of functions **:
-- ** Full text search of module **
-- ** Optional folding mode **
-- ** Faster virtualization: Upstream changes to wasmprinter to filter displayed range, instead of the current hack.
+- **URL proxy server**: Dedicated server to proxy URL requests to workaround CORS restrictions.
+- **Sharing server**: Simple server or P2P code for sharing a loaded module with someone else.
+- **Component support**
+- **Find callers of functions**:
+- **Full text search of module**
+- **Optional folding mode**
+- **Faster virtualization**: Upstream changes to wasmprinter to filter displayed range, instead of the current hack.
 
 ## Getting Started
 
