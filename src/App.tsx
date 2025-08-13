@@ -87,6 +87,7 @@ export function App() {
 }
 
 function AppInner() {
+  const [title, setTitle] = useState<string | null>(null);
   const [module, setModule] = useState<Promise<Module>>(initialModule);
   const [item, setItem] = useState<Item | null>(null);
   const [offset, setOffset] = useState<number | null>(null);
@@ -95,6 +96,7 @@ function AppInner() {
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Item[]>([]);
+
   let loadedModule = React.use(module);
   let validateError = loadedModule.validateError;
   let items = loadedModule.items;
@@ -104,6 +106,14 @@ function AppInner() {
   if (selectedItemIndex === -1) {
     selectedItemIndex = null;
   }
+
+  useEffect(() => {
+    if (title) {
+      document.title = `WebAssembly Explorer - ${title}`;
+    } else {
+      document.title = `WebAssembly Explorer`;
+    }
+  }, [title]);
 
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -236,8 +246,9 @@ function AppInner() {
     }
   }, [item, offset, items]);
 
-  const handleFileLoad = async (content: ArrayBuffer) => {
+  const handleFileLoad = async (title: string, content: ArrayBuffer) => {
     let mod = Module.load(new Uint8Array(content));
+    setTitle(title);
     setModule(mod);
   };
 
@@ -288,7 +299,7 @@ function AppInner() {
       const reader = new FileReader();
       reader.onload = (event) => {
         const content = event.target?.result as ArrayBuffer;
-        handleFileLoad(content);
+        handleFileLoad(file.name, content);
       };
       reader.readAsArrayBuffer(file);
     }

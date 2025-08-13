@@ -16,7 +16,7 @@ function WasmLogo() {
 }
 
 export function Toolbar(props: {
-  onFileLoad: (content: ArrayBuffer) => void;
+  onFileLoad: (title: string, content: ArrayBuffer) => void;
   onDownload: () => void;
   onShowHelp: () => void;
   module: Module;
@@ -29,7 +29,7 @@ export function Toolbar(props: {
       const reader = new FileReader();
       reader.onload = (e) => {
         const content = e.target?.result as ArrayBuffer;
-        props.onFileLoad(content);
+        props.onFileLoad(file.name, content);
       };
       reader.readAsArrayBuffer(file);
     }

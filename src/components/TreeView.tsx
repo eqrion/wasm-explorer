@@ -4,7 +4,6 @@ import type {
   Range,
   Item,
 } from "../../component-built/interfaces/local-module-module.d.ts";
-import { textChangeRangeNewSpan } from "typescript";
 
 interface ItemTree {
   rawName: string;
