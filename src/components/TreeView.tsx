@@ -4,6 +4,7 @@ import type {
   Range,
   Item,
 } from "../../component-built/interfaces/local-module-module.d.ts";
+import { textChangeRangeNewSpan } from "typescript";
 
 interface ItemTree {
   rawName: string;
@@ -121,6 +122,12 @@ function itemsToTree(items: Item[]): ItemTree {
   return root;
 }
 
+interface SearchMatch {
+  score: number;
+  item: ItemTree;
+  ancestors: string[];
+}
+
 interface TreeViewProps {
   items: Item[];
   selectedItem: number | null;
@@ -141,7 +148,7 @@ export function TreeView(props: TreeViewProps) {
   );
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [searchText, setSearchText] = useState("");
-  const [searchMatches, setSearchMatches] = useState<Set<number>>(new Set());
+  const [searchMatches, setSearchMatches] = useState<SearchMatch[]>([]);
   const [highlightedIndex, setHighlightedIndex] = useState<number | null>(null);
   const selectedNodeRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -166,42 +173,52 @@ export function TreeView(props: TreeViewProps) {
   }, []);
 
   // Compute search matches when search text or items change
-  const computeSearchMatches = (query: string): Set<number> => {
-    const matches = new Set<number>();
-    matches.add(ROOT_INDEX);
+  const computeSearchMatches = (query: string): SearchMatch[] => {
+    const matches: SearchMatch[] = [];
 
     if (query.trim() === "") {
       return matches;
     }
     const queryLower = query.toLowerCase();
 
-    const match = (node: ItemTree): boolean => {
-      // Recursively match children first
-      let childMatched = false;
+    const match = (node: ItemTree, ancestors: string[]) => {
+      let newAncestors = [...ancestors, node.displayName];
       node.children.forEach((child) => {
-        if (match(child)) {
-          childMatched = true;
-        }
+        match(child, newAncestors);
       });
 
-      // If one of our children matched, we match
-      if (childMatched) {
-        matches.add(node.index);
-        return true;
+      if (node.index === ROOT_INDEX) {
+        return;
       }
 
-      // Otherwise check if we fuzzy match, but limit the number of these to a maximum size
-      if (
-        matches.size < MAX_SEARCH_MATCHES &&
-        fuzzyMatchItem(queryLower, node) >= MIN_FUZZY_THRESHOLD
-      ) {
-        matches.add(node.index);
-        return true;
+      // Check if we fuzzy match, but limit the number of these to a maximum size
+      let score = fuzzyMatchItem(queryLower, node);
+
+      if (score < MIN_FUZZY_THRESHOLD) {
+        return;
       }
 
-      return false;
+      let index = matches.findIndex((x) => score > x.score);
+      if (index === -1) {
+        index = matches.length;
+      }
+
+      if (index >= MAX_SEARCH_MATCHES) {
+        return;
+      }
+
+      matches.splice(index, 0, {
+        score,
+        item: node,
+        ancestors,
+      });
+
+      if (matches.length > MAX_SEARCH_MATCHES) {
+        matches.pop();
+      }
     };
-    match(itemTree);
+
+    match(itemTree, []);
 
     return matches;
   };
@@ -210,47 +227,24 @@ export function TreeView(props: TreeViewProps) {
   useEffect(() => {
     const matches = computeSearchMatches(searchText);
     setSearchMatches(matches);
+    setHighlightedIndex(matches.length > 0 ? matches[0].item.index : null);
   }, [searchText, props.items, itemTree]);
-
-  // Find closest match for search text using similarity scoring
-  useEffect(() => {
-    if (!hasSearchText) {
-      setHighlightedIndex(null);
-      return;
-    }
-
-    const query = searchText.toLowerCase();
-
-    let bestMatch = -1;
-    let bestScore = 0;
-
-    props.items.forEach((item, index) => {
-      const score = fuzzyMatchItem(query, item);
-      if (score > bestScore && score >= MIN_FUZZY_THRESHOLD) {
-        bestScore = score;
-        bestMatch = index;
-      }
-    });
-
-    setHighlightedIndex(bestMatch);
-  }, [searchText, props.items]);
 
   // Get all visible items in display order for keyboard navigation
   const getVisibleItems = (): number[] => {
     const visibleItems: number[] = [];
 
-    const collectVisibleItems = (node: ItemTree) => {
-      const searchMatched = searchMatches.has(node.index);
-      if (hasSearchText && !searchMatched) {
-        return;
-      }
+    if (hasSearchText) {
+      return searchMatches.map((x) => x.item.index);
+    }
 
+    const collectVisibleItems = (node: ItemTree) => {
       if (node.index != ROOT_INDEX) {
         visibleItems.push(node.index);
       }
 
-      const isExpanded =
-        (hasSearchText && searchMatched) || expandedNodes.has(node.index);
+      const isExpanded = expandedNodes.has(node.index);
+      // (hasSearchText && searchMatched) || ;
       if (isExpanded) {
         node.children.forEach((child) => {
           collectVisibleItems(child);
@@ -415,16 +409,10 @@ export function TreeView(props: TreeViewProps) {
     path: string,
     depth: number = 0,
   ): React.ReactNode => {
-    const searchMatched = searchMatches.has(node.index);
-    if (hasSearchText && !searchMatched) return null;
-
     const hasChildren = node.children.length > 0;
-    const isExpanded =
-      (hasSearchText && searchMatched) || expandedNodes.has(node.index);
+    const isExpanded = expandedNodes.has(node.index);
     const isSelected = selectedIndex === node.index;
     const isHighlighted = node.index === highlightedIndex;
-    // Uncomment here and below to debug search scores
-    // const score = fuzzyMatchItem(searchText.toLowerCase(), node);
 
     return (
       <div key={path} className="select-none">
@@ -432,10 +420,10 @@ export function TreeView(props: TreeViewProps) {
           <div
             ref={isSelected ? selectedNodeRef : null}
             className={`flex items-center py-1 px-2 cursor-pointer hover:bg-gray-100 ${
-              isSelected
-                ? "bg-blue-100 text-blue-900"
-                : isHighlighted
-                  ? "bg-yellow-100 border-2 border-yellow-400 text-yellow-900"
+              isHighlighted
+                ? "bg-yellow-100 text-yellow-900"
+                : isSelected
+                  ? "bg-blue-100 text-blue-900"
                   : ""
             }`}
             style={{ paddingLeft: `${depth * 16 + 8}px` }}
@@ -454,7 +442,6 @@ export function TreeView(props: TreeViewProps) {
             )}
             {!hasChildren && <div className="w-5" />}
             <span className="text-sm truncate flex-1">{node.displayName}</span>
-            {/* Uncomment to debug search scores {hasSearchText && (<span className="text-xs text-gray-500 ml-2">{score}</span>)} */}
             {node.index !== ROOT_INDEX && (
               <span className="text-xs text-gray-500 ml-2">
                 [0x{node.range.start.toString(16)}-0x
@@ -477,6 +464,46 @@ export function TreeView(props: TreeViewProps) {
     );
   };
 
+  const renderSearchMatch = (
+    match: SearchMatch,
+    index: number,
+  ): React.ReactNode => {
+    const isSelected = selectedIndex === match.item.index;
+    const isHighlighted = match.item.index === highlightedIndex;
+
+    return (
+      <div
+        key={`search-${match.item.index}-${index}`}
+        className={`flex flex-col py-2 px-4 cursor-pointer hover:bg-gray-100 border-b border-gray-50 ${
+          isHighlighted
+            ? "bg-yellow-100 text-yellow-900"
+            : isSelected
+              ? "bg-blue-100 text-blue-900"
+              : ""
+        }`}
+        onClick={() =>
+          match.item.index >= 0 && handleItemSelect(match.item.index)
+        }
+      >
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium truncate flex-1">
+            {match.item.displayName}
+          </span>
+          {/* {hasSearchText && (<span className="text-xs text-gray-500 ml-2">{match.score}</span>)} */}
+          <span className="text-xs text-gray-500 ml-2">
+            [0x{match.item.range.start.toString(16)}-0x
+            {match.item.range.end.toString(16)}]
+          </span>
+        </div>
+        <div className="text-xs text-gray-400 mt-1 truncate">
+          {match.ancestors.length > 1
+            ? match.ancestors.slice(1).join(" > ")
+            : " "}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="flex flex-col h-full bg-white border-r border-gray-200">
       <div>
@@ -491,7 +518,8 @@ export function TreeView(props: TreeViewProps) {
         />
       </div>
       <div className="flex-1 overflow-y-auto">
-        {renderTreeNode(itemTree, "root")}
+        {!hasSearchText && renderTreeNode(itemTree, "root")}
+        {hasSearchText && searchMatches.map((x, i) => renderSearchMatch(x, i))}
       </div>
     </div>
   );
