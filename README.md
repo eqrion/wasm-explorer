@@ -21,11 +21,11 @@ A prototype web-based tool for exploring and analyzing WebAssembly modules. Buil
 
 - **URL proxy server**: Dedicated server to proxy URL requests to workaround CORS restrictions.
 - **Sharing server**: Simple server or P2P code for sharing a loaded module with someone else.
+- **Faster virtualization**: Upstream changes to wasmprinter to filter displayed range, instead of the current hack.
 - **Component support**
-- **Find callers of functions**:
+- **Find callers of functions**
 - **Full text search of module**
 - **Optional folding mode**
-- **Faster virtualization**: Upstream changes to wasmprinter to filter displayed range, instead of the current hack.
 
 ## Getting Started
 
