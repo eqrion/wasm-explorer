@@ -1,5 +1,5 @@
 import type {
-  Range,
+  DefinitionId,
   PrintPart,
   Item,
   ValidateError,
@@ -110,12 +110,13 @@ export class Module {
     return response.source;
   }
 
-  getCacheKey(range: Range): string {
-    return `${range.start}-${range.end}`;
+  getCacheKey(id: DefinitionId | undefined): string {
+    if (id === undefined) return "module";
+    return `${id.tag}:${JSON.stringify(id.val)}`;
   }
 
-  async printRich(range: Range): Promise<PrintPart[]> {
-    const cacheKey = this.getCacheKey(range);
+  async printRich(id: DefinitionId | undefined): Promise<PrintPart[]> {
+    const cacheKey = this.getCacheKey(id);
     const cached = this.printRichCache.get(cacheKey);
     if (cached) {
       return cached;
@@ -125,7 +126,7 @@ export class Module {
       kind: MessageToWorkerKind.PrintRich,
       id: nextMessageId++,
       moduleId: this.id,
-      range,
+      definitionId: id,
     });
     if (response.kind !== MessageFromWorkerKind.PrintRich) {
       throw new Error("unexpected response kind");
@@ -135,12 +136,12 @@ export class Module {
     return response.result;
   }
 
-  async printPlain(range: Range): Promise<string> {
+  async printPlain(id: DefinitionId | undefined): Promise<string> {
     let response = await sendMessage({
       kind: MessageToWorkerKind.PrintPlain,
       id: nextMessageId++,
       moduleId: this.id,
-      range,
+      definitionId: id,
     });
     if (response.kind !== MessageFromWorkerKind.PrintPlain) {
       throw new Error("unexpected response kind");

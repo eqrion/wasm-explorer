@@ -1,0 +1,38 @@
+[package]
+name = "wasm-ast-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[workspace]
+
+[dependencies]
+libfuzzer-sys = "0.4"
+waside = { path = ".." }
+wasm-smith = { version = "0.245" }
+wasmprinter = { version = "0.245" }
+arbitrary = { version = "1", features = ["derive"] }
+
+[[bin]]
+name = "roundtrip"
+path = "fuzz_targets/roundtrip.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "print_oracle"
+path = "fuzz_targets/print_oracle.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "roundtrip_raw"
+path = "fuzz_targets/roundtrip_raw.rs"
+test = false
+doc = false
+bench = false

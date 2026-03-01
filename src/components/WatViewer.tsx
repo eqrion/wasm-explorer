@@ -2,17 +2,32 @@ import * as React from "react";
 import { useState, useEffect, useRef } from "react";
 import { Module } from "../Module.js";
 import type {
+  DefinitionId,
   PrintPart,
   Item,
 } from "../../component-built/interfaces/local-module-module.d.ts";
 
 const MaxBytesForRich = 100 * 1024;
 
+function definitionIdToItemParam(id: DefinitionId): string {
+  switch (id.tag) {
+    case "type": return `type ${id.val}`;
+    case "func": return `func ${id.val}`;
+    case "table": return `table ${id.val}`;
+    case "memory": return `memory ${id.val}`;
+    case "global": return `global ${id.val}`;
+    case "element": return `elem ${id.val}`;
+    case "data": return `data ${id.val}`;
+    case "tag": return `tag ${id.val}`;
+    case "local": return `func ${id.val.func}`;
+  }
+}
+
 function renderRichPrint(parts: PrintPart[]) {
   let root = document.createElement("span");
   let offsets = document.createElement("div");
 
-  let stack = [root];
+  let stack: Element[] = [root];
   for (let part of parts) {
     switch (part.tag) {
       case "str": {
@@ -44,10 +59,23 @@ function renderRichPrint(parts: PrintPart[]) {
         stack.shift();
         break;
       }
+      case "xref": {
+        let ele = document.createElement("a");
+        let itemParam = definitionIdToItemParam(part.val);
+        let url = new URL(window.location.href);
+        url.searchParams.set("item", itemParam);
+        ele.href = url.toString();
+        ele.setAttribute("data-xref-item", itemParam);
+        ele.className = "print-xref";
+        stack[0].append(ele);
+        stack.unshift(ele);
+        break;
+      }
       default: {
         // @ts-expect-error the above should be exhaustive
         type remaining = typeof part.tag;
         console.error("got unknown print part", part);
+        break;
       }
     }
   }
@@ -77,16 +105,16 @@ export function WatViewer({
       return;
     }
 
-    let range = item.range;
+    let id = item.definitionId;
     let items = (async () => {
-      if (range.end - range.start > MaxBytesForRich) {
+      if (item.range.end - item.range.start > MaxBytesForRich) {
         let part: PrintPart = {
           tag: "str",
-          val: await content.printPlain(range),
+          val: await content.printPlain(id),
         };
         return [part];
       } else {
-        return await content.printRich(range);
+        return await content.printRich(id);
       }
     })();
     setBodyState(items);
@@ -143,33 +171,11 @@ export function WatViewer({
     }
   };
   let onClickContents = (e: React.MouseEvent<HTMLPreElement, MouseEvent>) => {
-    if (
-      e.target &&
-      e.target instanceof HTMLSpanElement &&
-      e.target.classList.contains("print-name")
-    ) {
-      let xref = e.target.innerText;
-
-      let xrefIsIndex = !isNaN(parseInt(xref));
-      let previousSibling = e.target.previousSibling;
-
-      // Apply heuristics to guess what an integer 'name' refers to
-      if (xrefIsIndex && previousSibling) {
-        let text = (previousSibling.textContent ?? "").trimEnd();
-
-        let funcPattern = /(call|func)$/;
-        let typePattern = /((struct\.\w+)|(array\.\w+)|type)$/;
-
-        if (text.match(funcPattern)) {
-          xref = "func " + xref;
-        } else if (text.match(typePattern)) {
-          xref = "type " + xref;
-        }
-      } else if (xref.startsWith("$")) {
-        xref = xref.substring(1);
-      }
-
-      searchXRef(xref);
+    let xrefAnchor = (e.target as HTMLElement).closest("a[data-xref-item]");
+    if (xrefAnchor) {
+      e.preventDefault();
+      searchXRef(xrefAnchor.getAttribute("data-xref-item")!);
+      return;
     }
   };
 

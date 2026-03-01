@@ -1,0 +1,15 @@
+[package]
+name = "waside"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+wasmparser = { workspace = true }
+wasm-encoder = { workspace = true }
+anyhow = { workspace = true }
+
+[dev-dependencies]
+wasmprinter = { workspace = true }
+wat = { workspace = true }
+wasm-smith = { workspace = true }
+arbitrary = { workspace = true }

@@ -1,0 +1,15 @@
+pub(crate) mod const_expr;
+pub(crate) mod custom;
+pub(crate) mod data;
+pub(crate) mod elements;
+pub(crate) mod exports;
+pub(crate) mod functions;
+pub(crate) mod globals;
+pub(crate) mod imports;
+pub(crate) mod instructions;
+pub(crate) mod memories;
+pub(crate) mod module;
+pub(crate) mod names;
+pub(crate) mod tables;
+pub(crate) mod tags;
+pub(crate) mod types;

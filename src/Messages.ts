@@ -1,6 +1,6 @@
 import type {
   Module as ModuleType,
-  Range,
+  DefinitionId,
   PrintPart,
   Item,
   ValidateError,
@@ -65,11 +65,11 @@ export type MessageToWorker =
       kind: MessageToWorkerKind.PrintRich;
       id: MessageId;
       moduleId: ModuleId;
-      range: Range;
+      definitionId: DefinitionId | undefined;
     }
   | {
       kind: MessageToWorkerKind.PrintPlain;
       id: MessageId;
       moduleId: ModuleId;
-      range: Range;
+      definitionId: DefinitionId | undefined;
     };

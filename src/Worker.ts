@@ -70,7 +70,7 @@ addEventListener("message", ({ data }: { data: MessageToWorker }) => {
       }
       case MessageToWorkerKind.PrintRich: {
         let module = modules[data.moduleId];
-        let result = module.printRich(data.range);
+        let result = module.printRich(data.definitionId);
         postMessage({
           kind: MessageFromWorkerKind.PrintRich,
           id: data.id,
@@ -80,7 +80,7 @@ addEventListener("message", ({ data }: { data: MessageToWorker }) => {
       }
       case MessageToWorkerKind.PrintPlain: {
         let module = modules[data.moduleId];
-        let result = module.printPlain(data.range);
+        let result = module.printPlain(data.definitionId);
         postMessage({
           kind: MessageFromWorkerKind.PrintPlain,
           id: data.id,
