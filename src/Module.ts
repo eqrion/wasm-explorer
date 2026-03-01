@@ -45,13 +45,31 @@ async function waitForResponse(id: MessageId): Promise<MessageFromWorker> {
   });
 }
 
-let worker = new Worker("./Worker.js", { type: "module" });
-console.log("launched worker");
+const workerUrl = (globalThis as any).__WORKER_URL__;
+const workerName = (globalThis as any).__COMPONENT_JS_URL__ ?? "";
+// VS Code webviews can't create Workers directly from vscode-resource URLs due to
+// cross-origin restrictions. Wrap in a same-origin blob URL that imports the script.
+const resolvedWorkerUrl = workerUrl
+  ? URL.createObjectURL(
+      new Blob([`import ${JSON.stringify(workerUrl)}`], {
+        type: "application/javascript",
+      }),
+    )
+  : "./Worker.js";
+let worker = new Worker(resolvedWorkerUrl, { type: "module", name: workerName });
+console.log(`launched worker: ${workerUrl ?? "./Worker.js"}`);
+worker.addEventListener("error", (e) => {
+  console.error(`worker error: ${e.message} (${e.filename}:${e.lineno})`);
+});
+worker.addEventListener("messageerror", (e) => {
+  console.error("worker messageerror", e);
+});
 
 // Technically a race condition, we should have the event listener installed before launching the worker
 let loaded = waitForResponse(LoadedMessageId);
 
 await loaded;
+console.log("worker loaded");
 
 let registry = new FinalizationRegistry(async (moduleId: ModuleId) => {
   await sendMessage({

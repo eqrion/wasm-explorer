@@ -1,0 +1,12 @@
+.vscode/**
+src/**
+webview/**
+node_modules/**
+tsconfig*.json
+build.mjs
+**/*.map
+**/*.ts
+**/*.tsx
+**/*.css
+!dist/**
+!media/**

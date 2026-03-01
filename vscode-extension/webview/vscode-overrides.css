@@ -1,0 +1,72 @@
+/* Override Tailwind hardcoded colors with VS Code theme variables */
+
+/* Base */
+body {
+  background: var(--vscode-editor-background) !important;
+  color: var(--vscode-editor-foreground) !important;
+}
+
+/* Background colors */
+.bg-white {
+  background: var(--vscode-editor-background) !important;
+}
+.bg-gray-100 {
+  background: var(--vscode-list-hoverBackground) !important;
+}
+.bg-gray-50 {
+  background: var(--vscode-list-hoverBackground) !important;
+}
+
+/* Border colors */
+.border-gray-200,
+.border-gray-100,
+.border-r {
+  border-color: var(--vscode-panel-border) !important;
+}
+
+/* Text colors */
+.text-gray-500,
+.text-gray-400,
+.text-gray-600,
+.text-gray-800 {
+  color: var(--vscode-descriptionForeground) !important;
+}
+
+/* Selected item (blue) */
+.bg-blue-100 {
+  background: var(--vscode-list-activeSelectionBackground) !important;
+}
+.text-blue-900 {
+  color: var(--vscode-list-activeSelectionForeground) !important;
+}
+
+/* Highlighted item (yellow) */
+.bg-yellow-100 {
+  background: var(--vscode-list-focusBackground, var(--vscode-list-hoverBackground)) !important;
+}
+.text-yellow-900 {
+  color: var(--vscode-list-focusForeground, var(--vscode-foreground)) !important;
+}
+
+/* Input field */
+input[type="text"] {
+  background: var(--vscode-input-background) !important;
+  color: var(--vscode-input-foreground) !important;
+  border-color: var(--vscode-input-border, var(--vscode-panel-border)) !important;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--vscode-scrollbarSlider-background);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--vscode-scrollbarSlider-hoverBackground);
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
