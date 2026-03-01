@@ -2,3 +2,5 @@
 node_modules/
 dist/
 test-results/
+.claude/
+TODO.md
