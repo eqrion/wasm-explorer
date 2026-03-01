@@ -15,37 +15,19 @@ declare function acquireVsCodeApi(): {
 
 const vscode = acquireVsCodeApi();
 
-// Log immediately to confirm the script is executing
-vscode.postMessage({ type: "log", text: "webview script executing" });
-
-function log(text: string) {
-  console.log(`[wasm-explorer] ${text}`);
-  vscode.postMessage({ type: "log", text });
-}
-
 function App() {
   const [module, setModule] = useState<Promise<Module> | null>(null);
   const [item, setItem] = useState<Item | null>(null);
   const [offset, setOffset] = useState<number | null>(null);
 
   useEffect(() => {
-    log("webview ready");
     vscode.postMessage({ type: "ready" });
 
     const handler = (event: MessageEvent) => {
       const msg = event.data;
       if (msg.type === "loadFile") {
-        log(`received ${msg.bytes.length} bytes, decoding`);
         const bytes = new Uint8Array(msg.bytes);
-        const promise = Module.load(bytes);
-        promise.then(
-          (m) =>
-            log(
-              `decoded: ${m.items.length} items${m.validateError ? `, validation error at 0x${m.validateError.offset.toString(16)}` : ""}`,
-            ),
-          (err) => log(`decode error: ${err}`),
-        );
-        setModule(promise);
+        setModule(Module.load(bytes));
         setItem(null);
         setOffset(null);
       }

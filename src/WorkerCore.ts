@@ -23,15 +23,12 @@ export async function startWorker(
 ) {
   let { Module } = await loadModule();
 
-  console.log("WORKER: started");
-
   postMessage({ kind: MessageFromWorkerKind.Loaded, id: LoadedMessageId });
 
   let nextModuleId: ModuleId = 0;
   let modules: { [id: ModuleId]: ModuleType } = {};
 
   addEventListener("message", ({ data }: { data: MessageToWorker }) => {
-    console.log(`WORKER: received ${data.id}, ${data.kind}`);
     try {
       switch (data.kind) {
         case MessageToWorkerKind.Construct: {
@@ -93,7 +90,6 @@ export async function startWorker(
         }
       }
     } catch (err) {
-      console.log(`WORKER: ${data.id}, ${data.kind}: ${err}`);
       postMessage({
         kind: MessageFromWorkerKind.Exception,
         id: data.id,

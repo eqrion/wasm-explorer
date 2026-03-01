@@ -6,24 +6,17 @@ export class WasmEditorProvider
 {
   public static readonly viewType = "wasmExplorer.watView";
 
-  static register(
-    context: vscode.ExtensionContext,
-    log: vscode.OutputChannel,
-  ): vscode.Disposable {
+  static register(context: vscode.ExtensionContext): vscode.Disposable {
     return vscode.window.registerCustomEditorProvider(
       WasmEditorProvider.viewType,
-      new WasmEditorProvider(context, log),
+      new WasmEditorProvider(context),
       { supportsMultipleEditorsPerDocument: false },
     );
   }
 
-  constructor(
-    private readonly context: vscode.ExtensionContext,
-    private readonly log: vscode.OutputChannel,
-  ) {}
+  constructor(private readonly context: vscode.ExtensionContext) {}
 
   async openCustomDocument(uri: vscode.Uri): Promise<vscode.CustomDocument> {
-    this.log.appendLine(`openCustomDocument: ${uri.fsPath}`);
     return { uri, dispose: () => {} };
   }
 
@@ -31,7 +24,6 @@ export class WasmEditorProvider
     document: vscode.CustomDocument,
     webviewPanel: vscode.WebviewPanel,
   ): Promise<void> {
-    this.log.appendLine(`resolveCustomEditor: ${document.uri.fsPath}`);
     const webview = webviewPanel.webview;
 
     webview.options = {
@@ -46,16 +38,8 @@ export class WasmEditorProvider
 
     webview.onDidReceiveMessage(async (msg) => {
       if (msg.type === "ready") {
-        this.log.appendLine(`webview ready, loading: ${document.uri.fsPath}`);
-        try {
-          const bytes = await fs.readFile(document.uri.fsPath);
-          this.log.appendLine(`sending ${bytes.byteLength} bytes to webview`);
-          webview.postMessage({ type: "loadFile", bytes: Array.from(bytes) });
-        } catch (err) {
-          this.log.appendLine(`error reading file: ${err}`);
-        }
-      } else if (msg.type === "log") {
-        this.log.appendLine(`[webview] ${msg.text}`);
+        const bytes = await fs.readFile(document.uri.fsPath);
+        webview.postMessage({ type: "loadFile", bytes: Array.from(bytes) });
       }
     });
   }

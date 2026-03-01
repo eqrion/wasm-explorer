@@ -57,19 +57,11 @@ const resolvedWorkerUrl = workerUrl
     )
   : "./Worker.js";
 let worker = new Worker(resolvedWorkerUrl, { type: "module", name: workerName });
-console.log(`launched worker: ${workerUrl ?? "./Worker.js"}`);
-worker.addEventListener("error", (e) => {
-  console.error(`worker error: ${e.message} (${e.filename}:${e.lineno})`);
-});
-worker.addEventListener("messageerror", (e) => {
-  console.error("worker messageerror", e);
-});
 
 // Technically a race condition, we should have the event listener installed before launching the worker
 let loaded = waitForResponse(LoadedMessageId);
 
 await loaded;
-console.log("worker loaded");
 
 let registry = new FinalizationRegistry(async (moduleId: ModuleId) => {
   await sendMessage({
