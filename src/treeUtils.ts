@@ -1,4 +1,4 @@
-import type { Range, Item } from "../component-built/interfaces/local-module-module.js";
+import type { Range, Item } from "waside";
 
 export interface ItemTree {
   rawName: string;

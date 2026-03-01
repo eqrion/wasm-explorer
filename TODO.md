@@ -12,3 +12,9 @@ TODO.md
 10. find all callers of a function
 11. view instructions in folded form
 12. remove share code and proxy server stuff
+
+# text format support
+
+1. validate method on binary AST
+2. lower from resolved wast data structures to binary AST
+  - preserve mapping from text spans to binary spans

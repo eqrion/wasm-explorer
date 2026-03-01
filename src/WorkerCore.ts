@@ -1,6 +1,5 @@
-import type {
-  Module as ModuleType,
-} from "../component-built/interfaces/local-module-module.js";
+import type { module } from "waside";
+type ModuleType = module.Module;
 import type {
   ModuleId,
   MessageToWorker,

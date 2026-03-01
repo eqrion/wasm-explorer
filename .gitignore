@@ -1,13 +1,4 @@
 **/.DS_Store
 node_modules/
-crates/component/src/bindings.rs
-crates/component/target
-crates/waside/target
-crates/waside/tests/spec
-crates/waside/tests/wasm-corpus
-crates/waside
-crates/waside.claude/
-crates/waside
-component-built/
 dist/
 test-results/

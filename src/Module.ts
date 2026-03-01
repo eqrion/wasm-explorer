@@ -1,9 +1,8 @@
-import type {
-  DefinitionId,
-  PrintPart,
-  Item,
-  ValidateError,
-} from "../component-built/interfaces/local-module-module.js";
+import type { module } from "waside";
+type DefinitionId = module.DefinitionId;
+type PrintPart = module.PrintPart;
+type Item = module.Item;
+type ValidateError = module.ValidateError;
 import {
   LoadedMessageId,
   type ModuleId,

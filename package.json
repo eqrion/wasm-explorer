@@ -1,16 +1,14 @@
 {
   "type": "module",
   "scripts": {
-    "build": "npm run build-component && npm run transpile && npm run typecheck && npm run build-js && npm run build-css && npm run copy-files",
-    "build-component": "cd crates/component && cargo component build --release --target wasm32-wasip1",
+    "build": "npm run typecheck && npm run build-js && npm run build-css && npm run copy-files",
     "build-js": "for source in Worker.ts App.tsx; do esbuild --bundle --format=esm src/$source --outdir=dist; done",
     "build-css": "npx @tailwindcss/cli -i ./pages/style.css -o ./dist/style.css",
-    "copy-files": "cp pages/index.html pages/favicon.png pages/logo.svg component-built/*.wasm dist",
-    "clean": "rm -rf crates/component/src/bindings.rs component-built dist && echo '## you will need to run `cargo clean` separately to delete cargo artifacts'",
-    "transpile": "jco transpile --no-nodejs-compat ./crates/component/target/wasm32-wasip1/release/component.wasm --out-dir component-built",
+    "copy-files": "cp pages/index.html pages/favicon.png pages/logo.svg dist",
+    "clean": "rm -rf dist",
     "typecheck": "tsc --jsx react",
-    "watch": "nodemon --watch 'pages/**/*' --watch 'src/**/*' --watch 'crates/**/*' --ext 'html,css,ts,tsx,rs' --exec 'npm run build'",
-    "format": "prettier --write 'src/**/*.{ts,tsx}' 'pages/**/*.{html,css}' && cargo fmt --manifest-path crates/component/Cargo.toml",
+    "watch": "nodemon --watch 'pages/**/*' --watch 'src/**/*' --ext 'html,css,ts,tsx' --exec 'npm run build'",
+    "format": "prettier --write 'src/**/*.{ts,tsx}' 'pages/**/*.{html,css}'",
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
     "test:unit:coverage": "vitest run --coverage",
@@ -21,12 +19,13 @@
     "package-extension": "cd vscode-extension && npx @vscode/vsce package"
   },
   "dependencies": {
-    "@bytecodealliance/jco": "^1.2.4",
+    "@bytecodealliance/preview2-shim": "^0.17.8",
     "@tailwindcss/cli": "^4.1.11",
     "react": "^19.1.0",
     "react-dom": "^19.1.1",
     "tailwindcss": "^4.1.11",
-    "typescript": "^5.4.5"
+    "typescript": "^5.4.5",
+    "waside": "0.1.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.49.0",
